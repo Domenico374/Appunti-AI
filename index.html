@@ -58,52 +58,7 @@
     </section>
   </main>
 
-  <script>
-    const dropZone  = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const fileList  = document.getElementById('fileList');
-    const fileNames = document.getElementById('fileNames');
-
-    dropZone.addEventListener('click', () => fileInput.click());
-
-    ['dragenter', 'dragover'].forEach(ev => {
-      dropZone.addEventListener(ev, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.add('border-blue-400', 'bg-blue-50');
-      });
-    });
-
-    ['dragleave', 'drop'].forEach(ev => {
-      dropZone.addEventListener(ev, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.remove('border-blue-400', 'bg-blue-50');
-      });
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      const files = Array.from(e.dataTransfer.files || []);
-      if (!files.length) return;
-      handleSelectedFiles(files);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-      handleSelectedFiles(files);
-    });
-
-    function handleSelectedFiles(files) {
-      fileNames.innerHTML = '';
-      files.forEach(f => {
-        const li = document.createElement('li');
-        li.textContent = `${f.name} (${Math.round(f.size / 1024)} KB)`;
-        fileNames.appendChild(li);
-      });
-      fileList.classList.remove('hidden');
-      console.log('File selezionati:', files);
-    }
-  </script>
+  <!-- JS esterno -->
+  <script src="app.js" defer></script>
 </body>
 </html>
