@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Appunti-AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50 flex items-center justify-center">
+
+  <!-- Schermata iniziale -->
+  <main id="welcomeScreen"
+        class="max-w-xl w-full mx-4 bg-white rounded-2xl shadow-lg border border-slate-100 p-8">
+    
+    <!-- Titolo -->
+    <header class="mb-6 text-center">
+      <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Appunti-AI</h1>
+      <p class="mt-2 text-sm text-slate-500">
+        Carica un file PDF, Word o un’immagine per iniziare a generare appunti e verbali.
+      </p>
+    </header>
+
+    <!-- Box upload -->
+    <section>
+      <div id="dropZone"
+           class="border-2 border-dashed border-slate-300 rounded-xl bg-slate-50
+                  px-6 py-10 flex flex-col items-center justify-center gap-3
+                  cursor-pointer transition hover:border-blue-400 hover:bg-blue-50">
+        
+        <!-- Icona -->
+        <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor"
+             stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M7 16a4 4 0 01.88-2.51l3.6-4.55a1 1 0 011.54 0l3.6 4.55A4 4 0 0117 16m-5-7v9" />
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 16a7 7 0 0114 0v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1z" />
+        </svg>
+
+        <p class="text-sm font-medium text-slate-900">
+          Trascina qui i file oppure
+          <span class="text-blue-600 underline">clicca per selezionarli</span>
+        </p>
+        <p class="text-xs text-slate-500">
+          Formati supportati: PDF, DOC, DOCX, TXT, JPG, PNG
+        </p>
+
+        <!-- Input file nascosto -->
+        <input id="fileInput" type="file" multiple
+               accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png"
+               class="hidden" />
+      </div>
+
+      <!-- Elenco file scelti -->
+      <div id="fileList" class="mt-4 text-xs text-slate-500 hidden">
+        <p class="font-medium text-slate-600 mb-1">File selezionati:</p>
+        <ul class="list-disc list-inside space-y-0.5" id="fileNames"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const dropZone  = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList  = document.getElementById('fileList');
+    const fileNames = document.getElementById('fileNames');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach(ev => {
+      dropZone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('border-blue-400', 'bg-blue-50');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(ev => {
+      dropZone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const files = Array.from(e.dataTransfer.files || []);
+      if (!files.length) return;
+      handleSelectedFiles(files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      handleSelectedFiles(files);
+    });
+
+    function handleSelectedFiles(files) {
+      fileNames.innerHTML = '';
+      files.forEach(f => {
+        const li = document.createElement('li');
+        li.textContent = `${f.name} (${Math.round(f.size / 1024)} KB)`;
+        fileNames.appendChild(li);
+      });
+      fileList.classList.remove('hidden');
+      console.log('File selezionati:', files);
+    }
+  </script>
+</body>
+</html>
