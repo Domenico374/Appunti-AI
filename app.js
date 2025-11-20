@@ -1,19 +1,25 @@
 // app.js — logica base di Appunti-AI (schermata upload)
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("[Appunti-AI] DOM pronto");
+
   const dropZone  = document.getElementById("dropZone");
   const fileInput = document.getElementById("fileInput");
   const fileList  = document.getElementById("fileList");
   const fileNames = document.getElementById("fileNames");
 
   if (!dropZone || !fileInput) {
-    console.warn("Elementi upload non trovati nella pagina.");
+    console.warn("[Appunti-AI] Elementi upload non trovati nella pagina.");
     return;
   }
 
-  // Clic sul box = apri selettore file
+  /* -------------------------------
+      CLICK → apre selettore file
+  --------------------------------*/
   dropZone.addEventListener("click", () => fileInput.click());
 
-  // Evidenziazione quando si trascina sopra
+  /* -------------------------------
+      DRAG OVER (evidenzia)
+  --------------------------------*/
   ["dragenter", "dragover"].forEach((ev) => {
     dropZone.addEventListener(ev, (e) => {
       e.preventDefault();
@@ -22,6 +28,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  /* -------------------------------
+      DRAG LEAVE / DROP (toglie highlight)
+  --------------------------------*/
   ["dragleave", "drop"].forEach((ev) => {
     dropZone.addEventListener(ev, (e) => {
       e.preventDefault();
@@ -30,58 +39,70 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Drop file
+  /* -------------------------------
+      DROP FILE
+  --------------------------------*/
   dropZone.addEventListener("drop", (e) => {
     const files = Array.from(e.dataTransfer?.files || []);
     if (!files.length) return;
+
+    console.log("[Appunti-AI] File caricati con drag & drop:", files);
     handleSelectedFiles(files);
   });
 
-  // Selezione tramite file picker
+  /* -------------------------------
+      FILE SELECTOR (click)
+  --------------------------------*/
   fileInput.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
+    console.log("[Appunti-AI] File scelti dal selettore:", files);
     handleSelectedFiles(files);
   });
 
-  // Gestione file scelti
+  /* -------------------------------
+      FUNZIONE PRINCIPALE:
+      gestisce i file caricati
+  --------------------------------*/
   function handleSelectedFiles(files) {
-    if (!fileList || !fileNames) {
-      console.warn("Elementi lista file non trovati.");
-      return;
-    }
+    console.log("[Appunti-AI] handleSelectedFiles() iniziata");
 
-    // Svuota la lista
+    // Svuota lista nella UI
     fileNames.innerHTML = "";
 
+    // Metadati da salvare per workspace.html
     const meta = [];
 
     files.forEach((f) => {
       const sizeKb = f.size / 1024;
 
-      // Aggiorna la lista visibile
+      // Mostra nella UI
       const li = document.createElement("li");
       li.textContent = `${f.name} (${Math.round(sizeKb)} KB)`;
       fileNames.appendChild(li);
 
-      // Metadati per la prossima pagina
+      // Metadati
       meta.push({
         name: f.name,
         sizeKb: sizeKb,
       });
     });
 
-    // Mostra il blocco "file selezionati"
+    // Mostra blocco dei file
     fileList.classList.remove("hidden");
 
-    // Salva info in localStorage per usarle in workspace.js
+    // Salva in localStorage
     try {
       localStorage.setItem("appunti_ai_lastFiles", JSON.stringify(meta));
+      console.log("[Appunti-AI] Salvati su localStorage:", meta);
     } catch (e) {
-      console.warn("Impossibile salvare i file su localStorage", e);
+      console.warn("[Appunti-AI] Errore salvataggio localStorage:", e);
     }
 
+    console.log("[Appunti-AI] Redirect verso workspace.html…");
+
     // Vai alla pagina di workspace
-    window.location.href = "workspace.html";
+    window.location.assign("workspace.html");
   }
 });
