@@ -45,24 +45,44 @@ document.addEventListener("DOMContentLoaded", () => {
     handleSelectedFiles(files);
   });
 
-  // Gestione file scelti (per ora solo UI)
+  // Gestione file scelti
   function handleSelectedFiles(files) {
     if (!fileList || !fileNames) {
       console.warn("Elementi lista file non trovati.");
       return;
     }
 
+    // Svuota la lista
     fileNames.innerHTML = "";
 
-    files.forEach(f => {
+    // Array con info minime dei file
+    const meta = [];
+
+    files.forEach((f) => {
+      const sizeKb = f.size / 1024;
+
+      // Aggiorna la UI
       const li = document.createElement("li");
-      li.textContent = `${f.name} (${Math.round(f.size / 1024)} KB)`;
+      li.textContent = `${f.name} (${Math.round(sizeKb)} KB)`;
       fileNames.appendChild(li);
+
+      meta.push({
+        name: f.name,
+        sizeKb: sizeKb,
+      });
     });
 
+    // Mostra la sezione file selezionati
     fileList.classList.remove("hidden");
 
-    // 🔜 qui collegheremo upload/estrazione/AI
-    console.log("File selezionati:", files);
+    // Salvataggio per workspace.html
+    try {
+      localStorage.setItem("appunti_ai_lastFiles", JSON.stringify(meta));
+    } catch (e) {
+      console.warn("Impossibile salvare i file su localStorage", e);
+    }
+
+    // Vai al workspace
+    window.location.href = "workspace.html";
   }
 });
