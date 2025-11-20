@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Appunti-AI – Workspace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-50">
+  <div class="max-w-6xl mx-auto px-4 py-6 space-y-4">
+
+    <!-- Header -->
+    <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900">Appunti-AI</h1>
+        <p class="text-xs text-slate-500">
+          Workspace per anteprima, appunti, analisi AI e verbale.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs">
+        <div class="px-3 py-2 rounded-lg bg-white shadow border border-slate-100">
+          <div class="text-slate-400">File selezionato</div>
+          <div id="fileInfo" class="font-medium text-slate-800">
+            Nessun file
+          </div>
+        </div>
+        <button id="btnNewFile"
+                class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900">
+          Nuovo file
+        </button>
+      </div>
+    </header>
+
+    <!-- Griglia principale -->
+    <main class="grid gap-4 md:grid-cols-3">
+
+      <!-- Anteprima -->
+      <section class="bg-white rounded-2xl shadow border border-slate-100 p-4 flex flex-col">
+        <h2 class="text-sm font-semibold text-slate-800 mb-2">Anteprima</h2>
+        <p class="text-xs text-slate-500 mb-2">
+          Testo estratto dal documento (o incolla qui manualmente per provare).
+        </p>
+        <textarea id="previewText"
+                  class="flex-1 text-xs rounded-lg border border-slate-200 p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Anteprima del contenuto…"></textarea>
+      </section>
+
+      <!-- Appunti -->
+      <section class="bg-white rounded-2xl shadow border border-slate-100 p-4 flex flex-col">
+        <h2 class="text-sm font-semibold text-slate-800 mb-2">Appunti</h2>
+        <textarea id="notes"
+                  class="flex-1 text-xs rounded-lg border border-slate-200 p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Appunti trascritti o estratti…"></textarea>
+
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button id="btnClean"
+                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 text-slate-800 hover:bg-slate-300">
+            Pulizia
+          </button>
+          <button id="btnFromPreview"
+                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 text-white hover:bg-emerald-600">
+            Usa anteprima → Appunti
+          </button>
+          <button id="btnGenerateMinutes"
+                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+            Genera verbale
+          </button>
+          <button id="btnReset"
+                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-600">
+            Reset
+          </button>
+        </div>
+      </section>
+
+      <!-- Analisi AI -->
+      <section class="bg-white rounded-2xl shadow border border-slate-100 p-4 flex flex-col gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-800 mb-2">Analisi AI (locale)</h2>
+          <p class="text-xs text-slate-500">
+            Per ora la logica è locale (non chiamiamo ancora nessuna API). In futuro qui collegheremo il modello AI.
+          </p>
+        </div>
+
+        <div class="space-y-2 flex-1">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-xs font-semibold text-slate-700">Riassunto</h3>
+              <button id="btnSummarize" class="text-[11px] text-blue-600 hover:underline">
+                Genera
+              </button>
+            </div>
+            <div id="summaryBox"
+                 class="text-[11px] text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-[64px] whitespace-pre-wrap">
+              —
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-xs font-semibold text-slate-700">Punti salienti</h3>
+              <button id="btnHighlights" class="text-[11px] text-blue-600 hover:underline">
+                Genera
+              </button>
+            </div>
+            <div id="highlightsBox"
+                 class="text-[11px] text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-[64px] whitespace-pre-wrap">
+              —
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-xs font-semibold text-slate-700">To-Do</h3>
+              <button id="btnTodos" class="text-[11px] text-blue-600 hover:underline">
+                Genera
+              </button>
+            </div>
+            <div id="todoBox"
+                 class="text-[11px] text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-[64px] whitespace-pre-wrap">
+              —
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-xs font-semibold text-slate-700">Tag suggeriti</h3>
+              <button id="btnTags" class="text-[11px] text-blue-600 hover:underline">
+                Genera
+              </button>
+            </div>
+            <div id="tagsBox"
+                 class="text-[11px] text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-2 min-h-[40px] whitespace-pre-wrap">
+              —
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Verbale -->
+    <section class="bg-white rounded-2xl shadow border border-slate-100 p-4">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-semibold text-slate-800">Verbale generato</h2>
+        <div class="flex gap-2">
+          <button id="btnCopyMinutes"
+                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-800 hover:bg-slate-200">
+            Copia
+          </button>
+          <button id="btnDownloadMinutes"
+                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-800 hover:bg-slate-200">
+            Scarica .md
+          </button>
+        </div>
+      </div>
+      <pre id="minutesResult"
+           class="whitespace-pre-wrap text-xs leading-5 text-slate-800 bg-slate-50 border border-slate-200 rounded-lg p-3">
+Il verbale comparirà qui…
+      </pre>
+    </section>
+  </div>
+
+  <script src="workspace.js"></script>
+</body>
+</html>
