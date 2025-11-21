@@ -2,7 +2,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Workspace] Inizializzazione workspace...");
 
-  // Elementi DOM
   const elements = {
     fileListWorkspace: document.getElementById("fileListWorkspace"),
     fileCountBadge: document.getElementById("fileCountBadge"),
@@ -47,10 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
       elements.fileCountBadge.textContent = "0 file";
       return;
     }
-
     elements.fileCountBadge.textContent = `${state.files.length} file`;
     elements.fileListWorkspace.innerHTML = "";
-    
     state.files.forEach((file) => {
       const li = document.createElement("li");
       li.className = "flex items-center justify-between p-2 rounded hover:bg-slate-50";
@@ -69,6 +66,14 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function loadNotes() {
+    // Prova prima con gli appunti estratti dagli upload (default pipeline)
+    const extracted = localStorage.getItem("appunti_ai_extractedText");
+    if (extracted) {
+      elements.notes.value = extracted;
+      state.currentNotes = extracted;
+      return;
+    }
+    // Se non ci sono, usa quelli manualmente salvati
     const savedNotes = localStorage.getItem("appunti_ai_notes");
     if (savedNotes) {
       elements.notes.value = savedNotes;
@@ -81,6 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
       elements.notes.value = "";
       state.currentNotes = "";
       localStorage.removeItem("appunti_ai_notes");
+      localStorage.removeItem("appunti_ai_extractedText");
       clearAllAnalysis();
     }
   });
