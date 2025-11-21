@@ -1,24 +1,16 @@
-// app.js - Gestione upload file PDF, TXT, DOCX per Appunti-AI
-
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Appunti-AI] Inizializzazione app...");
 
-  // Elementi DOM
   const dropZone = document.getElementById("dropZone");
   const fileInput = document.getElementById("fileInput");
-  const fileList = document.getElementById("fileList");
-  const fileCountBadge = document.getElementById("fileCountBadge");
 
-  let uploadedFiles = [];
-
-  // ===== GESTIONE CLICK E DRAG-N-DROP SUL BOX =====
-
-  // Click su dropZone apre file picker
+  // Click attiva fileInput
   dropZone?.addEventListener("click", () => {
+    console.log("Click su dropZone!");
     fileInput?.click();
   });
 
-  // Gestione dragover/leave sul box
+  // Drag-n-drop
   dropZone?.addEventListener("dragover", (e) => {
     e.preventDefault();
     dropZone.classList.add("border-blue-400", "bg-blue-50");
@@ -32,44 +24,34 @@ document.addEventListener("DOMContentLoaded", () => {
     dropZone.classList.remove("border-blue-400", "bg-blue-50");
     const files = Array.from(e.dataTransfer.files || []);
     if (files.length === 0) return;
-    console.log(`[Appunti-AI] Trascinati ${files.length} file`);
+    console.log(`Trascinati ${files.length} file`);
     handleSelectedFiles(files);
   });
 
-  // Selezione tramite file picker
   fileInput?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) {
-      console.log("[Appunti-AI] Nessun file selezionato");
+      console.log("Nessun file selezionato");
       return;
     }
-    console.log(`[Appunti-AI] Selezionati ${files.length} file`);
+    console.log(`Selezionati ${files.length} file`);
     handleSelectedFiles(files);
   });
 
-  // ===== CARICAMENTO E LETTURA FILE =====
-
+  // ===== Lettura/parsing file =====
   function handleSelectedFiles(files) {
-    uploadedFiles = [];
     const allTexts = [];
     let filesProcessed = 0;
     const filesToProcess = files.length;
 
     files.forEach((f, idx) => {
-      console.log(`[Appunti-AI] Processing file ${idx + 1}: ${f.name} (${f.type})`);
-
-      const fileRecord = {
-        name: f.name,
-        sizeKb: f.size / 1024,
-        type: f.type
-      };
+      console.log(`Processing file: ${f.name}`);
 
       // PDF
       if (f.name.endsWith(".pdf") || f.type === "application/pdf") {
         extractTextFromPDF(f, function(text) {
           allTexts[idx] = text;
           filesProcessed++;
-          console.log(`[Appunti-AI] PDF estratto (${filesProcessed}/${filesToProcess})`);
           if (filesProcessed === filesToProcess) afterAllExtracted();
         });
       }
@@ -78,7 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
         extractTextFromDOCX(f, function(text) {
           allTexts[idx] = text;
           filesProcessed++;
-          console.log(`[Appunti-AI] DOCX estratto (${filesProcessed}/${filesToProcess})`);
           if (filesProcessed === filesToProcess) afterAllExtracted();
         });
       }
@@ -88,104 +69,59 @@ document.addEventListener("DOMContentLoaded", () => {
         reader.onload = function(e) {
           allTexts[idx] = e.target.result;
           filesProcessed++;
-          console.log(`[Appunti-AI] TXT letto (${filesProcessed}/${filesToProcess})`);
           if (filesProcessed === filesToProcess) afterAllExtracted();
         };
         reader.readAsText(f);
       }
-      // Formato non riconosciuto
       else {
-        console.warn(`[Appunti-AI] Formato non supportato: ${f.name}`);
         filesProcessed++;
         if (filesProcessed === filesToProcess) afterAllExtracted();
       }
-
-      uploadedFiles.push(fileRecord);
     });
 
     function afterAllExtracted() {
-      console.log("[Appunti-AI] Tutti i file elaborati");
       const combinedText = allTexts.filter(t => t).join("\n\n---\n\n");
-      // Salva in localStorage
       localStorage.setItem("appunti_ai_extractedText", combinedText);
-      localStorage.setItem("appunti_ai_lastFiles", JSON.stringify(uploadedFiles));
-      console.log(`[Appunti-AI] Testo salvato (${combinedText.length} caratteri)`);
-      console.log("[Appunti-AI] File salvati in localStorage");
-
-      // Reindirizza al workspace
       window.location.assign("workspace.html");
     }
   }
 
-  // ===== ESTRAZIONE PDF (con PDF.js) =====
+  // ===== PDF.js =====
   function extractTextFromPDF(file, callback) {
-    console.log("[Appunti-AI] Inizio estrazione PDF...");
     const reader = new FileReader();
-
     reader.onload = function(e) {
       const typedArray = new Uint8Array(e.target.result);
       const pdfjsLib = window['pdfjs-dist/build/pdf'];
-
-      if (!pdfjsLib) {
-        console.error("[Appunti-AI] PDF.js non caricato");
-        callback("");
-        return;
-      }
-
+      if (!pdfjsLib) { callback(""); return; }
       pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
-        let text = "";
-        let pagesProcessed = 0;
+        let text = "", pagesProcessed = 0;
         const totalPages = pdf.numPages;
-
         function extractPage(pageNum) {
-          pdf.getPage(pageNum).then(function(page) {
-            page.getTextContent().then(function(content) {
+          pdf.getPage(pageNum).then(page => {
+            page.getTextContent().then(content => {
               text += content.items.map(item => item.str).join(" ") + "\n";
               pagesProcessed++;
-
-              if (pagesProcessed === totalPages) {
-                console.log(`[Appunti-AI] PDF completato (${totalPages} pagine)`);
-                callback(text);
-              } else {
-                extractPage(pageNum + 1);
-              }
+              if (pagesProcessed === totalPages) callback(text);
+              else extractPage(pageNum + 1);
             });
           });
         }
-
         extractPage(1);
-      }).catch(function(err) {
-        console.error("[Appunti-AI] Errore parsing PDF:", err);
-        callback("");
-      });
+      }).catch(() => callback(""));
     };
-
     reader.readAsArrayBuffer(file);
   }
 
-  // ===== ESTRAZIONE DOCX (con Mammoth.js) =====
+  // ===== Mammoth.js (DOCX) =====
   function extractTextFromDOCX(file, callback) {
-    console.log("[Appunti-AI] Inizio estrazione DOCX...");
     const reader = new FileReader();
-
     reader.onload = function(e) {
       const mammoth = window.mammoth;
-      if (!mammoth) {
-        console.error("[Appunti-AI] Mammoth.js non caricato");
-        callback("");
-        return;
-      }
+      if (!mammoth) { callback(""); return; }
       mammoth.extractRawText({ arrayBuffer: e.target.result })
-        .then(function(result) {
-          console.log("[Appunti-AI] DOCX estratto correttamente");
-          callback(result.value);
-        })
-        .catch(function(err) {
-          console.error("[Appunti-AI] Errore estrazione DOCX:", err);
-          callback("");
-        });
+        .then(result => callback(result.value))
+        .catch(() => callback(""));
     };
-
     reader.readAsArrayBuffer(file);
   }
 
