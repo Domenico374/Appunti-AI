@@ -1,6 +1,7 @@
-// workspace.js - Logica per workspace.html di Appunti-AI
+// workspace.js - Gestione workspace Appunti-AI con analisi, verbale e export PDF
+
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("[Workspace] Inizializzazione workspace...");
+  console.log("[Workspace] Avvio...");
 
   const elements = {
     fileListWorkspace: document.getElementById("fileListWorkspace"),
@@ -27,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
     currentNotes: ""
   };
 
-  // ===== INIZIALIZZAZIONE =====
+  // ====== INIZIALIZZAZIONE FILE ======
   function loadFiles() {
     try {
       const savedFiles = localStorage.getItem("appunti_ai_lastFiles");
@@ -35,19 +36,24 @@ document.addEventListener("DOMContentLoaded", () => {
         state.files = JSON.parse(savedFiles);
         displayFiles();
       } else {
-        console.log("[Workspace] Nessun file trovato in localStorage");
+        elements.fileCountBadge.textContent = "0 file";
+        elements.noFilesMsg.style.display = "block";
+        elements.fileListWorkspace.innerHTML = "";
       }
     } catch (e) {
-      console.error("[Workspace] Errore caricamento file:", e);
+      console.error("[Workspace] Errore file:", e);
     }
   }
 
   function displayFiles() {
     if (!state.files || state.files.length === 0) {
       elements.fileCountBadge.textContent = "0 file";
+      elements.noFilesMsg.style.display = "block";
+      elements.fileListWorkspace.innerHTML = "";
       return;
     }
     elements.fileCountBadge.textContent = `${state.files.length} file`;
+    elements.noFilesMsg.style.display = "none";
     elements.fileListWorkspace.innerHTML = "";
     state.files.forEach((file) => {
       const li = document.createElement("li");
@@ -60,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ===== GESTIONE APPUNTI =====
+  // ====== APPUNTI ======
   elements.notes?.addEventListener("input", (e) => {
     state.currentNotes = e.target.value;
     localStorage.setItem("appunti_ai_notes", state.currentNotes);
@@ -90,18 +96,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ===== ANALISI AI (DEMO LOCALE) =====
+  // ====== ANALISI INTELLIGENTE ======
   elements.btnSummary?.addEventListener("click", () => {
     if (!state.currentNotes.trim()) {
       alert("Inserisci degli appunti prima di generare il riassunto");
       return;
     }
-    console.log("[Workspace] Generazione riassunto...");
-    const lines = state.currentNotes.split('\n').filter(l => l.trim());
+    const summary = state.currentNotes
+      .split('\n')
+      .filter(l => l.trim())
+      .slice(0, 3)
+      .join(' ')
+      .substring(0, 200) + "...";
     const wordCount = state.currentNotes.split(/\s+/).length;
-    const summary = lines.slice(0, 3).join(' ').substring(0, 200) + "...";
     elements.summaryBox.innerHTML = `
-      <em>Riassunto automatico (${wordCount} parole totali):</em><br>
+      <em>Riassunto automatico (${wordCount} parole):</em><br>
       ${summary || "Nessun contenuto da riassumere."}
     `;
   });
@@ -111,7 +120,6 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Inserisci degli appunti prima di estrarre i punti chiave");
       return;
     }
-    console.log("[Workspace] Estrazione punti chiave...");
     const lines = state.currentNotes.split('\n');
     const highlights = lines.filter(line => {
       const trimmed = line.trim();
@@ -125,13 +133,9 @@ document.addEventListener("DOMContentLoaded", () => {
         trimmed.length > 10 && trimmed.length < 100
       );
     }).slice(0, 5);
-    if (highlights.length > 0) {
-      elements.highlightsBox.innerHTML = highlights
-        .map(h => `• ${h.trim()}`)
-        .join('<br>');
-    } else {
-      elements.highlightsBox.innerHTML = "Nessun punto chiave identificato.";
-    }
+    elements.highlightsBox.innerHTML = highlights.length > 0
+      ? highlights.map(h => `• ${h.trim()}`).join('<br>')
+      : "Nessun punto chiave identificato.";
   });
 
   elements.btnTodo?.addEventListener("click", () => {
@@ -139,44 +143,32 @@ document.addEventListener("DOMContentLoaded", () => {
       alert("Inserisci degli appunti prima di estrarre le azioni");
       return;
     }
-    console.log("[Workspace] Estrazione To-Do...");
     const actionKeywords = [
       'fare', 'preparare', 'inviare', 'contattare', 'verificare',
       'controllare', 'aggiornare', 'completare', 'organizzare',
       'pianificare', 'TODO', 'TO DO', 'azione', 'task', 'entro'
     ];
-    const lines = state.currentNotes.split('\n');
-    const todos = lines.filter(line => {
-      const lower = line.toLowerCase();
-      return actionKeywords.some(keyword => lower.includes(keyword));
-    }).slice(0, 5);
-    if (todos.length > 0) {
-      elements.todoBox.innerHTML = todos
-        .map((todo, i) => `${i + 1}. ${todo.trim()}`)
-        .join('<br>');
-    } else {
-      elements.todoBox.innerHTML = `
-        <em>Azioni suggerite:</em><br>
-        1. Rivedere gli appunti<br>
-        2. Condividere con il team<br>
-        3. Pianificare prossimi passi
-      `;
-    }
+    const todos = state.currentNotes
+      .split('\n')
+      .filter(line => actionKeywords.some(keyword => line.toLowerCase().includes(keyword)))
+      .slice(0, 5);
+    elements.todoBox.innerHTML = todos.length > 0
+      ? todos.map((todo, i) => `${i + 1}. ${todo.trim()}`).join('<br>')
+      : `<em>Azioni suggerite:</em><br>
+         1. Rivedere gli appunti<br>
+         2. Condividere con il team<br>
+         3. Pianificare prossimi passi`;
   });
 
-  // ===== GENERAZIONE VERBALE =====
+  // ====== VERBALE ======
   elements.btnGenerateMinutes?.addEventListener("click", () => {
     if (!state.currentNotes.trim()) {
       alert("Inserisci degli appunti prima di generare il verbale");
       return;
     }
-    console.log("[Workspace] Generazione verbale...");
     const oggi = new Date();
     const dataFormattata = oggi.toLocaleDateString('it-IT', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
     const summary = elements.summaryBox.textContent.replace('—', '').trim();
     const highlights = elements.highlightsBox.textContent.replace('—', '').trim();
@@ -195,7 +187,7 @@ PARTECIPANTI
 ====================
 ORDINE DEL GIORNO
 ====================
-[Da completare basandosi sugli appunti]
+[Basato sugli appunti]
 
 ====================
 SINTESI DELLA DISCUSSIONE
@@ -210,7 +202,7 @@ ${highlights || 'Nessun punto chiave identificato'}
 ====================
 DECISIONI PRESE
 ====================
-[Da completare basandosi sulla discussione]
+[Da completare]
 
 ====================
 AZIONI DA INTRAPRENDERE
@@ -223,25 +215,23 @@ Scadenza: [Da definire]
 ====================
 PROSSIMI PASSI
 ====================
-- Distribuzione del presente verbale
-- Follow-up sulle azioni assegnate
+- Distribuzione verbale
+- Follow-up sulle azioni
 - Prossima riunione: [Da pianificare]
 
 ====================
-NOTE AGGIUNTIVE
+NOTE
 ====================
 ${state.currentNotes.length > 1000 ? 'Appunti completi disponibili separatamente' : ''}
 
 ---
-Verbale generato automaticamente da Appunti-AI
+Verbale generato da Appunti-AI
 ${oggi.toISOString()}`;
 
     elements.minutesBox.value = verbale;
     localStorage.setItem("appunti_ai_lastMinutes", verbale);
     elements.btnGenerateMinutes.textContent = "✓ Generato";
-    setTimeout(() => {
-      elements.btnGenerateMinutes.textContent = "Genera da appunti";
-    }, 2000);
+    setTimeout(() => { elements.btnGenerateMinutes.textContent = "Genera da appunti"; }, 1800);
   });
 
   elements.btnCopyMinutes?.addEventListener("click", async () => {
@@ -253,9 +243,7 @@ ${oggi.toISOString()}`;
     try {
       await navigator.clipboard.writeText(text);
       elements.btnCopyMinutes.textContent = "✓ Copiato";
-      setTimeout(() => {
-        elements.btnCopyMinutes.textContent = "Copia";
-      }, 2000);
+      setTimeout(() => { elements.btnCopyMinutes.textContent = "Copia"; }, 1800);
     } catch (err) {
       console.error("[Workspace] Errore copia:", err);
       elements.minutesBox.select();
@@ -263,41 +251,29 @@ ${oggi.toISOString()}`;
     }
   });
 
-  // ===== SCARICA PDF LOGO + FOOTER =====
+  // ====== SCARICA PDF ======
   elements.btnDownloadPDF?.addEventListener("click", () => {
     const text = elements.minutesBox.value;
     if (!text.trim()) {
       alert("Nessun documento da scaricare. Genera il verbale prima.");
       return;
     }
-    console.log("[Workspace] Scaricamento PDF...");
-
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4"
-    });
-
-    // Logo personalizzato (modifica URL per il tuo PNG/SVG)
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     const logoUrl = "https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg";
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.src = logoUrl;
-    img.onload = function() {
+    img.onload = function () {
       doc.addImage(img, 'PNG', 10, 7, 18, 18);
-
-      // Titolo, barra e data
       doc.setFontSize(18);
       doc.setTextColor(31, 41, 55);
       doc.text("Appunti-AI", 35, 18);
       doc.setDrawColor(196, 203, 221);
       doc.line(10, 27, doc.internal.pageSize.getWidth() - 10, 27);
-
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
       doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 10, 32);
-
       doc.setFontSize(12);
       doc.setTextColor(15, 23, 42);
       const margin = 10;
@@ -306,7 +282,6 @@ ${oggi.toISOString()}`;
       const maxWidth = pageWidth - 2 * margin;
       const lines = doc.splitTextToSize(text, maxWidth);
       let yPosition = 40;
-
       lines.forEach(line => {
         if (yPosition > pageHeight - 20) {
           doc.addPage();
@@ -315,7 +290,6 @@ ${oggi.toISOString()}`;
         doc.text(line, margin, yPosition);
         yPosition += 6;
       });
-
       // Footer su ogni pagina
       const addFooter = () => {
         doc.setFontSize(9);
@@ -327,16 +301,14 @@ ${oggi.toISOString()}`;
         doc.setPage(i);
         addFooter();
       }
-
       const fileName = `Appunti-AI-${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
-
       elements.btnDownloadPDF.textContent = "✓ Scaricato";
       setTimeout(() => { elements.btnDownloadPDF.textContent = "⬇️ PDF"; }, 2000);
     };
   });
 
-  // ===== GENERAZIONE DOCUMENTO TRAMITE API =====
+  // ====== GENERAZIONE DOCUMENTO VIA API ======
   elements.generateDocApi?.addEventListener("click", () => {
     const tipo = elements.documentType?.value || "verbale";
     const testo = elements.notes?.value || "";
@@ -346,8 +318,7 @@ ${oggi.toISOString()}`;
     }
     elements.generateDocApi.disabled = true;
     elements.generateDocApi.textContent = "Attendere...";
-    
-    fetch("https://appunti-ai-three.vercel.app/api/genera", {
+    fetch("/api/genera", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -360,6 +331,7 @@ ${oggi.toISOString()}`;
     .then(data => {
       if (data && data.contenuto) {
         elements.minutesBox.value = data.contenuto;
+        localStorage.setItem("appunti_ai_lastMinutes", data.contenuto);
       } else {
         alert("Nessun documento ricevuto dall'API.");
       }
@@ -394,5 +366,5 @@ ${oggi.toISOString()}`;
   if (lastMinutes && elements.minutesBox) {
     elements.minutesBox.value = lastMinutes;
   }
-  console.log("[Workspace] Workspace pronto!");
+  console.log("[Workspace] Pronto!");
 });
