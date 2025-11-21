@@ -263,7 +263,7 @@ ${oggi.toISOString()}`;
     }
   });
 
-  // ===== SCARICA PDF =====
+  // ===== SCARICA PDF LOGO + FOOTER =====
   elements.btnDownloadPDF?.addEventListener("click", () => {
     const text = elements.minutesBox.value;
     if (!text.trim()) {
@@ -279,45 +279,61 @@ ${oggi.toISOString()}`;
       format: "a4"
     });
 
-    // Titolo
-    doc.setFontSize(16);
-    doc.setTextColor(31, 41, 55);
-    doc.text("Appunti-AI", 10, 15);
+    // Logo personalizzato (modifica URL per il tuo PNG/SVG)
+    const logoUrl = "https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg";
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = logoUrl;
+    img.onload = function() {
+      doc.addImage(img, 'PNG', 10, 7, 18, 18);
 
-    // Data di generazione
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 10, 22);
+      // Titolo, barra e data
+      doc.setFontSize(18);
+      doc.setTextColor(31, 41, 55);
+      doc.text("Appunti-AI", 35, 18);
+      doc.setDrawColor(196, 203, 221);
+      doc.line(10, 27, doc.internal.pageSize.getWidth() - 10, 27);
 
-    // Contenuto
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 10;
-    const maxWidth = pageWidth - 2 * margin;
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 10, 32);
 
-    const lines = doc.splitTextToSize(text, maxWidth);
-    let yPosition = 30;
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      const margin = 10;
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const maxWidth = pageWidth - 2 * margin;
+      const lines = doc.splitTextToSize(text, maxWidth);
+      let yPosition = 40;
 
-    lines.forEach(line => {
-      if (yPosition > pageHeight - margin) {
-        doc.addPage();
-        yPosition = margin;
+      lines.forEach(line => {
+        if (yPosition > pageHeight - 20) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        doc.text(line, margin, yPosition);
+        yPosition += 6;
+      });
+
+      // Footer su ogni pagina
+      const addFooter = () => {
+        doc.setFontSize(9);
+        doc.setTextColor(140, 143, 168);
+        doc.text("Documento generato da Appunti-AI", margin, pageHeight - 10);
+        doc.text(`© ${new Date().getFullYear()} www.appunti-ai.com`, pageWidth - margin - 60, pageHeight - 10);
+      };
+      for (let i = 1; i <= doc.getNumberOfPages(); i++) {
+        doc.setPage(i);
+        addFooter();
       }
-      doc.text(line, margin, yPosition);
-      yPosition += 5;
-    });
 
-    // Scarica
-    const fileName = `Appunti-AI-${new Date().toISOString().split('T')[0]}.pdf`;
-    doc.save(fileName);
-    
-    elements.btnDownloadPDF.textContent = "✓ Scaricato";
-    setTimeout(() => {
-      elements.btnDownloadPDF.textContent = "⬇️ PDF";
-    }, 2000);
+      const fileName = `Appunti-AI-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+
+      elements.btnDownloadPDF.textContent = "✓ Scaricato";
+      setTimeout(() => { elements.btnDownloadPDF.textContent = "⬇️ PDF"; }, 2000);
+    };
   });
 
   // ===== GENERAZIONE DOCUMENTO TRAMITE API =====
