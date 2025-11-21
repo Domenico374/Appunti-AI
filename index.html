@@ -42,7 +42,7 @@
       gap: 1em;
       flex-wrap: wrap;
     }
-    button {
+    button, .file-remove-btn {
       padding: 10px 22px;
       border-radius: 8px;
       border: none;
@@ -52,15 +52,49 @@
       box-shadow: 0 2px 12px 0 #6366f120;
       cursor: pointer;
       transition: background 0.15s, box-shadow 0.15s;
+      font-size: 1em;
+      margin-right: 6px;
     }
-    button:hover {
+    button:hover, .file-remove-btn:hover {
       background: #4f46e5;
       box-shadow: 0 3px 14px 0 #6366f149;
     }
+    .file-list {
+      margin: 0.5em 0 0.8em 0;
+      padding-left: 0;
+      list-style: none;
+    }
+    .file-item {
+      display: flex;
+      align-items: center;
+      background: #f4f4fd;
+      border-radius: 6px;
+      padding: 7px 8px;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .file-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
     .footer { font-size: 12px; color: #888; text-align: right; margin-top: 2em; }
     hr { margin: 2em 0; }
     .file-info { font-size: 12px; color: #666; margin-bottom: 0.3em; }
-    /* Spinner Styles */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 160px;
+      background: #3730a3;
+      color: #fff;
+      padding: 13px 30px;
+      border-radius: 8px;
+      font-size: 1em;
+      box-shadow: 0 2px 14px 0 #6366f145;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .toast.active { opacity: 1; pointer-events: auto; }
     .spinner-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -97,11 +131,8 @@
       button { width: 100%; padding: 11px; }
     }
   </style>
-  <!-- PDF.js per PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- Mammoth.js per DOCX -->
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
-  <!-- jsPDF per esportazione PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -118,11 +149,11 @@
     <div class="section">
       <span class="label">File di riferimento</span>
       <input type="text" id="docRef" value="">
-      <div class="file-info" id="fileInfo"></div>
     </div>
     <div class="section">
       <span class="label">Appunti / Corpo</span>
       <input id="fileInput" type="file" multiple accept=".txt,.pdf,.doc,.docx,.md,.mp3,.wav,.m4a" />
+      <ul id="fileList" class="file-list"></ul>
       <textarea id="notes" rows="8" placeholder="Qui inserisci o carica gli appunti..."></textarea>
     </div>
     <div class="section">
@@ -133,29 +164,42 @@
       <button id="pdfBtn">Esporta PDF</button>
       <button id="copyBtn">Copia testo</button>
       <button id="clearBtn">Pulisci tutto</button>
+      <button id="backupBtn">Esporta Backup</button>
+      <button id="importBtn">Importa Backup</button>
+      <input id="importBackup" type="file" style="display:none;" accept="application/json">
     </div>
     <hr>
     <div class="footer">© Appunti-AI · www.appunti-ai.com</div>
   </div>
-
-  <!-- Spinner overlay -->
   <div id="spinner" class="spinner-overlay" style="display:none;">
     <div class="lds-dual-ring"></div>
   </div>
-
+  <div id="toast" class="toast"></div>
 <script>
-  // Helpers per localStorage
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('active');
+    setTimeout(() => toast.classList.remove('active'), 1800);
+  }
+  function showSpinner() { document.getElementById("spinner").style.display = "flex"; }
+  function hideSpinner() { document.getElementById("spinner").style.display = "none"; }
+
+  // ----- SALVATAGGIO E CARICAMENTO AUTOMATICO -----
   function saveLocal() {
+    // Serializza i file come array di oggetti solo info.
+    const files = filesState.map(f => ({
+      name: f.name, size: f.size, type: f.type, lastModified: f.lastModified, data: f.data || null
+    }));
     localStorage.setItem('appuntiAI', JSON.stringify({
       docTitle: document.getElementById("docTitle").value,
       docDate: document.getElementById("docDate").value,
       docRef: document.getElementById("docRef").value,
       notes: document.getElementById("notes").value,
       extra: document.getElementById("extra").value,
-      fileInfo: document.getElementById("fileInfo").textContent,
+      files
     }));
   }
-
   function loadLocal() {
     const data = JSON.parse(localStorage.getItem('appuntiAI') || "{}");
     if (data.docTitle !== undefined) document.getElementById("docTitle").value = data.docTitle;
@@ -163,190 +207,231 @@
     if (data.docRef !== undefined) document.getElementById("docRef").value = data.docRef;
     if (data.notes !== undefined) document.getElementById("notes").value = data.notes;
     if (data.extra !== undefined) document.getElementById("extra").value = data.extra;
-    if (data.fileInfo !== undefined) document.getElementById("fileInfo").textContent = data.fileInfo;
+    if (data.files) {
+      filesState = data.files;
+      renderFileList();
+    }
   }
 
-  // Salvataggio ogni modifica
+  // ---- FILE STATE E RENDER ----
+  let filesState = [];
+  const fileListEl = document.getElementById("fileList");
+
+  function renderFileList() {
+    fileListEl.innerHTML = "";
+    filesState.forEach((file, idx) => {
+      const li = document.createElement("li");
+      li.className = "file-item";
+      const exts = file.name.split(".").pop().toUpperCase();
+      const typeIcon = file.type.startsWith("audio/") ? "🎤"
+                    : file.type === "application/pdf" ? "📄"
+                    : exts === "DOCX" ? "📝"
+                    : "📄";
+      li.innerHTML = `<span class="file-name">${typeIcon} ${file.name} <span style="color:#aaa;">(${(file.size/1024).toFixed(1)} KB)</span></span>
+          <button class="file-remove-btn" title="Rimuovi" onclick="removeFile(${idx}); event.stopPropagation();">🗑️</button>
+          <button class="file-remove-btn" title="Estrai testo" onclick="extractText(${idx}); event.stopPropagation();" style="background:#22c55e;">⬇️</button>`;
+      fileListEl.appendChild(li);
+    });
+    saveLocal();
+  }
+
+  function removeFile(index) {
+    filesState.splice(index,1);
+    renderFileList();
+    showToast("File rimosso");
+  }
+
+  // ---- CARICAMENTO FILE ----
+  document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files || []);
+    let added = 0;
+    for (const file of files) {
+      // Leggi base64 per persistenza semplice (piccoli file)
+      let data = null;
+      if (file.size < 2*1024*1024) { // Solo file piccoli
+        data = await new Promise(res => {
+          const r = new FileReader();
+          r.onload = e => res(e.target.result);
+          r.readAsDataURL(file);
+        });
+      }
+      filesState.push({ name: file.name, size: file.size, type: file.type, lastModified: file.lastModified, data });
+      added++;
+    }
+    renderFileList();
+    e.target.value = "";
+    if (added) showToast(`${added} file aggiunto${added>1?'i':''}`);
+  });
+
+  // ---- ESTRAZIONE TESTO FILE ----
+  window.extractText = function(idx) {
+    const file = filesState[idx];
+    showSpinner();
+    // Se file è piccolo e salvato, lavoriamo direttamente su data base64. Altrimenti pop-up per caricarlo.
+    // In ambiente reale, meglio una struttura bifase: qui per demo rapidità!
+    if (file.type.startsWith("audio/")) {
+      trascriviAudioOpenAI(file);
+      return;
+    }
+    if (file.type === "application/pdf") {
+      estraiTestoPDF(file);
+      return;
+    }
+    if (file.name.endsWith(".docx")) {
+      estraiTestoDOCX(file);
+      return;
+    }
+    leggiTesto(file);
+  };
+
+  function b64toBlob(dataURI, mime) {
+    var byteString = atob(dataURI.split(',')[1]);
+    var ab = new ArrayBuffer(byteString.length);
+    var ia = new Uint8Array(ab);
+    for (var i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], {type: mime});
+  }
+  function leggiTesto(file) {
+    if (file.data) {
+      // Da dataURL salvato
+      const blob = b64toBlob(file.data, file.type || 'text/plain');
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById("notes").value = e.target.result;
+        hideSpinner();
+        saveLocal();
+        showToast("Testo caricato");
+      };
+      reader.readAsText(blob,"UTF-8");
+    } else {
+      showToast("Ricarica il file originale o usa file più piccoli");
+      hideSpinner();
+    }
+  }
+  function estraiTestoPDF(file) {
+    if (file.data) {
+      const blob = b64toBlob(file.data, file.type);
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const typedarray = new Uint8Array(e.target.result);
+        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+          let testoTotale = "";
+          let promesse = [];
+          for (let i = 1; i <= pdf.numPages; i++) {
+            promesse.push(pdf.getPage(i).then(page =>
+              page.getTextContent().then(txt => {
+                testoTotale += txt.items.map(item => item.str).join(" ") + "\n";
+              })
+            ));
+          }
+          Promise.all(promesse).then(() => {
+            document.getElementById("notes").value = testoTotale;
+            hideSpinner();
+            saveLocal();
+            showToast("Testo PDF estratto");
+          });
+        }).catch(() => {
+          alert("Errore estrazione PDF.");
+          hideSpinner();
+        });
+      };
+      reader.readAsArrayBuffer(blob);
+    }
+  }
+  function estraiTestoDOCX(file) {
+    if (file.data) {
+      const blob = b64toBlob(file.data, file.type);
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        mammoth.convertToHtml({ arrayBuffer: e.target.result })
+          .then(result => {
+            const html = result.value;
+            const txt = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+            document.getElementById("notes").value = txt;
+            hideSpinner();
+            saveLocal();
+            showToast("Testo DOCX estratto");
+          })
+          .catch(() => {
+            alert("Errore estrazione DOCX.");
+            hideSpinner();
+          });
+      };
+      reader.readAsArrayBuffer(blob);
+    }
+  }
+  function trascriviAudioOpenAI(file) {
+    // Esempio rapido: dati base64 già in file.data (audiodata)
+    fetch("/api/trascrivi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        audioBase64: file.data?.split(',')[1] || "",
+        audioMimeType: file.type
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.testo) {
+        document.getElementById("notes").value = data.testo;
+        showToast("Trascrizione audio completata");
+      } else {
+        alert("Errore trascrizione audio.");
+      }
+      hideSpinner();
+      saveLocal();
+    })
+    .catch(() => {
+      alert("Errore nella richiesta di trascrizione audio.");
+      hideSpinner();
+    });
+  }
+
+  // ---- DATI ----
   ["docTitle","docDate","docRef","notes","extra"].forEach(id => {
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById(id).addEventListener("input", saveLocal);
     });
   });
 
-  // Spinner functions
-  function showSpinner() {
-    document.getElementById("spinner").style.display = "flex";
-  }
-  function hideSpinner() {
-    document.getElementById("spinner").style.display = "none";
-  }
-
   document.addEventListener("DOMContentLoaded", () => {
-    // Recupera dati localStorage
     if (!localStorage.getItem("appuntiAI")) {
       document.getElementById("docDate").value = new Date().toLocaleDateString();
     }
     loadLocal();
-
-    // Aggiornamento automatico docDate se vuoto
     if (!document.getElementById("docDate").value) {
       document.getElementById("docDate").value = new Date().toLocaleDateString();
     }
   });
 
-  const fileInput = document.getElementById("fileInput");
-  const notesBox = document.getElementById("notes");
-  const copyBtn = document.getElementById("copyBtn");
-  const pdfBtn = document.getElementById("pdfBtn");
-  const clearBtn = document.getElementById("clearBtn");
-  const docRef = document.getElementById("docRef");
-  const fileInfo = document.getElementById("fileInfo");
-
-  fileInput?.addEventListener("change", (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      fileInfo.textContent = files.map(f => `${f.name} • ${(f.size/1024).toFixed(1)} KB`).join(", ");
-      docRef.value = files[0].name;
-    } else {
-      fileInfo.textContent = "";
-      docRef.value = "";
-    }
-    saveLocal();
-    for (const file of files) {
-      if (file.type.startsWith("audio/")) {
-        showSpinner();
-        trascriviAudioOpenAI(file);
-        return;
-      }
-      if (file.type === "application/pdf") {
-        showSpinner();
-        estraiTestoPDF(file);
-        return;
-      }
-      if (file.name.endsWith(".docx")) {
-        showSpinner();
-        estraiTestoDOCX(file);
-        return;
-      }
-      leggiTesto(file); // Solo TXT/MD
-    }
-  });
-
-  function leggiTesto(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const extracted = e.target.result;
-      notesBox.value = extracted;
-      saveLocal();
-    };
-    reader.readAsText(file, "UTF-8");
-  }
-
-  function estraiTestoPDF(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const typedarray = new Uint8Array(e.target.result);
-      pdfjsLib.getDocument(typedarray).promise.then(pdf => {
-        let testoTotale = "";
-        let promesse = [];
-        for (let i = 1; i <= pdf.numPages; i++) {
-          promesse.push(pdf.getPage(i).then(page =>
-            page.getTextContent().then(txt => {
-              testoTotale += txt.items.map(item => item.str).join(" ") + "\n";
-            })
-          ));
-        }
-        Promise.all(promesse).then(() => {
-          notesBox.value = testoTotale;
-          hideSpinner();
-          saveLocal();
-        });
-      }).catch(() => {
-        alert("Errore estrazione PDF.");
-        hideSpinner();
-      });
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  function estraiTestoDOCX(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      mammoth.convertToHtml({ arrayBuffer: e.target.result })
-        .then(result => {
-          const html = result.value;
-          const txt = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
-          notesBox.value = txt;
-          hideSpinner();
-          saveLocal();
-        })
-        .catch(() => {
-          alert("Errore estrazione DOCX.");
-          hideSpinner();
-        });
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  function trascriviAudioOpenAI(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const audioBase64 = e.target.result.split(',')[1];
-      fetch("/api/trascrivi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          audioBase64,
-          audioMimeType: file.type
-        })
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.testo) {
-          notesBox.value = data.testo;
-        } else {
-          alert("Errore trascrizione audio.");
-        }
-        hideSpinner();
-        saveLocal();
-      })
-      .catch(() => {
-        alert("Errore nella richiesta di trascrizione audio.");
-        hideSpinner();
-      });
-    };
-    reader.readAsDataURL(file);
-  }
-
-  // Copia testo
-  copyBtn.onclick = () => {
-    const output = `${document.getElementById("docTitle").value}\n${document.getElementById("docDate").value}\n${document.getElementById("docRef").value}\n\n${notesBox.value}\n\n${document.getElementById("extra").value}`;
+  // ---- AZIONI ----
+  document.getElementById("copyBtn").onclick = () => {
+    const output = `${document.getElementById("docTitle").value}\n${document.getElementById("docDate").value}\n${document.getElementById("docRef").value}\n\n${document.getElementById("notes").value}\n\n${document.getElementById("extra").value}`;
     navigator.clipboard.writeText(output)
       .then(() => {
-        copyBtn.textContent = "✓ Copiato!";
-        setTimeout(() => copyBtn.textContent = "Copia testo", 1600);
+        showToast("Testo copiato negli appunti");
       });
   };
 
-  // Pulisci tutto
-  clearBtn.onclick = () => {
+  document.getElementById("clearBtn").onclick = () => {
     document.getElementById("docTitle").value = "";
     document.getElementById("docDate").value = new Date().toLocaleDateString();
     document.getElementById("docRef").value = "";
-    notesBox.value = "";
+    document.getElementById("notes").value = "";
     document.getElementById("extra").value = "";
-    fileInfo.textContent = "";
+    filesState = [];
+    renderFileList();
     localStorage.removeItem('appuntiAI');
-    clearBtn.textContent = "✓ Pulito!";
-    setTimeout(() => clearBtn.textContent = "Pulisci tutto", 1200);
+    showToast("Dati resettati!");
   };
 
-  // PDF professionale
-  pdfBtn.onclick = () => {
+  document.getElementById("pdfBtn").onclick = () => {
     const titolo = document.getElementById("docTitle").value;
     const data = document.getElementById("docDate").value;
     const ref = document.getElementById("docRef").value;
-    const corpo = notesBox.value;
+    const corpo = document.getElementById("notes").value;
     const extra = document.getElementById("extra").value;
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -375,11 +460,45 @@
       const extraLines = doc.splitTextToSize(extra, 160);
       extraLines.forEach(line => { doc.text(line, 20, y); y += 7; });
     }
-    // Footer su pagina
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text(`© Appunti-AI · www.appunti-ai.com · ${new Date().getFullYear()}`, 20, 287);
+
     doc.save(`AppuntiAI-${new Date().toISOString().slice(0,10)}.pdf`);
+    showToast("PDF generato!");
+  };
+
+  // ---- BACKUP/IMPORT ----
+  document.getElementById("backupBtn").onclick = () => {
+    const savedata = localStorage.getItem("appuntiAI") || "{}";
+    const blob = new Blob([savedata], {type:"application/json"});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `AppuntiAI_backup_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Backup salvato");
+  };
+  document.getElementById("importBtn").onclick = () => {
+    document.getElementById("importBackup").click();
+  };
+  document.getElementById("importBackup").onchange = function(ev) {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const obj = JSON.parse(e.target.result);
+        localStorage.setItem("appuntiAI", JSON.stringify(obj));
+        loadLocal();
+        showToast("Backup importato!");
+      } catch {
+        alert("Il file di backup non è valido!");
+      }
+    };
+    reader.readAsText(file, "utf-8");
+    this.value = "";
   };
 </script>
 </body>
