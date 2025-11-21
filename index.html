@@ -9,12 +9,19 @@
     .section { margin: 1.2em 0 1.2em 0; }
     .label { color: #465; font-weight: bold; margin-top: 0.4em; display: block; }
     textarea, input[type="text"] { width: 100%; padding: 8px; font-size: 1em; margin: 4px 0 0 0; }
+    input[type="file"] { margin-bottom: 0.7em; }
     .actions { margin: 1.2em 0; display: flex; gap: 1em; }
     button { padding: 7px 22px; border-radius: 7px; border: 1px solid #ccc; background: #e8e8e8; cursor: pointer; }
     button:hover { background: #e0e7ff; border-color: #555; }
     .footer { font-size: 12px; color: #888; text-align: right; margin-top: 2em; }
     hr { margin: 2em 0; }
+    .file-info { font-size: 12px; color: #666; margin-bottom: 0.3em; }
   </style>
+  <!-- PDF.js per PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Mammoth.js per DOCX -->
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+  <!-- jsPDF per esportazione PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
@@ -30,9 +37,11 @@
   <div class="section">
     <span class="label">File di riferimento</span>
     <input type="text" id="docRef" value="">
+    <div class="file-info" id="fileInfo"></div>
   </div>
   <div class="section">
     <span class="label">Appunti / Corpo</span>
+    <input id="fileInput" type="file" multiple accept=".txt,.pdf,.doc,.docx,.md,.mp3,.wav,.m4a" />
     <textarea id="notes" rows="8" placeholder="Qui inserisci o carica gli appunti..."></textarea>
   </div>
   <div class="section">
@@ -48,30 +57,140 @@
   <div class="footer">© Appunti-AI · www.appunti-ai.com</div>
 
 <script>
+  // Imposta data automatica
   document.getElementById("docDate").value = new Date().toLocaleDateString();
+  const fileInput = document.getElementById("fileInput");
+  const notesBox = document.getElementById("notes");
+  const copyBtn = document.getElementById("copyBtn");
+  const pdfBtn = document.getElementById("pdfBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const docRef = document.getElementById("docRef");
+  const fileInfo = document.getElementById("fileInfo");
+
+  fileInput?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      fileInfo.textContent = files.map(f => `${f.name} • ${(f.size/1024).toFixed(1)} KB`).join(", ");
+      docRef.value = files[0].name;
+    } else {
+      fileInfo.textContent = "";
+      docRef.value = "";
+    }
+    for (const file of files) {
+      if (file.type.startsWith("audio/")) {
+        trascriviAudioOpenAI(file);
+        return;
+      }
+      if (file.type === "application/pdf") {
+        estraiTestoPDF(file);
+        return;
+      }
+      if (file.name.endsWith(".docx")) {
+        estraiTestoDOCX(file);
+        return;
+      }
+      leggiTesto(file); // Solo TXT/MD
+    }
+  });
+
+  function leggiTesto(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const extracted = e.target.result;
+      notesBox.value = extracted;
+    };
+    reader.readAsText(file, "UTF-8");
+  }
+
+  function estraiTestoPDF(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const typedarray = new Uint8Array(e.target.result);
+      pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+        let testoTotale = "";
+        let promesse = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          promesse.push(pdf.getPage(i).then(page =>
+            page.getTextContent().then(txt => {
+              testoTotale += txt.items.map(item => item.str).join(" ") + "\n";
+            })
+          ));
+        }
+        Promise.all(promesse).then(() => {
+          notesBox.value = testoTotale;
+        });
+      });
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function estraiTestoDOCX(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      mammoth.convertToHtml({ arrayBuffer: e.target.result })
+        .then(result => {
+          const html = result.value;
+          const txt = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+          notesBox.value = txt;
+        })
+        .catch(() => alert("Errore estrazione DOCX."));
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function trascriviAudioOpenAI(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const audioBase64 = e.target.result.split(',')[1];
+      fetch("/api/trascrivi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audioBase64,
+          audioMimeType: file.type
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.testo) {
+          notesBox.value = data.testo;
+        } else {
+          alert("Errore trascrizione audio.");
+        }
+      })
+      .catch(() => alert("Errore nella richiesta di trascrizione audio."));
+    };
+    reader.readAsDataURL(file);
+  }
 
   // Copia testo
-  document.getElementById("copyBtn").onclick = () => {
-    const output = `${document.getElementById("docTitle").value}\n${document.getElementById("docDate").value}\n${document.getElementById("docRef").value}\n\n${document.getElementById("notes").value}\n\n${document.getElementById("extra").value}`;
+  copyBtn.onclick = () => {
+    const output = `${document.getElementById("docTitle").value}\n${document.getElementById("docDate").value}\n${document.getElementById("docRef").value}\n\n${notesBox.value}\n\n${document.getElementById("extra").value}`;
     navigator.clipboard.writeText(output)
-      .then(() => alert("Testo copiato!"));
+      .then(() => {
+        copyBtn.textContent = "✓ Copiato!";
+        setTimeout(() => copyBtn.textContent = "Copia testo", 1600);
+      });
   };
 
   // Pulisci tutto
-  document.getElementById("clearBtn").onclick = () => {
+  clearBtn.onclick = () => {
     document.getElementById("docTitle").value = "";
     document.getElementById("docDate").value = new Date().toLocaleDateString();
     document.getElementById("docRef").value = "";
-    document.getElementById("notes").value = "";
+    notesBox.value = "";
     document.getElementById("extra").value = "";
+    fileInfo.textContent = "";
+    clearBtn.textContent = "✓ Pulito!";
+    setTimeout(() => clearBtn.textContent = "Pulisci tutto", 1200);
   };
 
   // PDF professionale
-  document.getElementById("pdfBtn").onclick = () => {
+  pdfBtn.onclick = () => {
     const titolo = document.getElementById("docTitle").value;
     const data = document.getElementById("docDate").value;
     const ref = document.getElementById("docRef").value;
-    const corpo = document.getElementById("notes").value;
+    const corpo = notesBox.value;
     const extra = document.getElementById("extra").value;
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -106,7 +225,6 @@
     doc.setTextColor(100);
     doc.text(`© Appunti-AI · www.appunti-ai.com · ${new Date().getFullYear()}`, 20, 287);
 
-    // Salva
     doc.save(`AppuntiAI-${new Date().toISOString().slice(0,10)}.pdf`);
   };
 </script>
