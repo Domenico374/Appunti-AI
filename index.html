@@ -5,14 +5,56 @@
   <title>Appunti-AI Professionale</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 700px; margin: 2rem auto; background: #fafafa; color: #2a2a2a; }
-    h1, h2 { margin: 0.7em 0 0.4em 0; }
-    .section { margin: 1.2em 0 1.2em 0; }
-    .label { color: #465; font-weight: bold; margin-top: 0.4em; display: block; }
-    textarea, input[type="text"] { width: 100%; padding: 8px; font-size: 1em; margin: 4px 0 0 0; }
-    input[type="file"] { margin-bottom: 0.7em; }
-    .actions { margin: 1.2em 0; display: flex; gap: 1em; }
-    button { padding: 7px 22px; border-radius: 7px; border: 1px solid #ccc; background: #e8e8e8; cursor: pointer; }
-    button:hover { background: #e0e7ff; border-color: #555; }
+    h1 { font-size: 2.2em; margin-top: 36px; margin-bottom: 36px; }
+    .section { margin: 26px 0 20px 0; }
+    .label {
+      color: #374151;
+      font-weight: bold;
+      font-size: 15px;
+      margin-top: 16px;
+      margin-bottom: 7px;
+      display: block;
+    }
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 11px 13px;
+      font-size: 1em;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      margin-top: 4px;
+      margin-bottom: 0.5em;
+      background: #fff;
+      transition: box-shadow 0.2s, border 0.2s;
+      box-sizing: border-box;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px #a5b4fc88;
+      border-color: #6366f1;
+    }
+    input[type="file"] {
+      margin-bottom: 0.7em;
+    }
+    .actions {
+      margin: 32px 0;
+      display: flex;
+      gap: 1em;
+    }
+    button {
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      background: #6366f1;
+      color: #fff;
+      box-shadow: 0 2px 12px 0 #6366f120;
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    button:hover {
+      background: #4f46e5;
+      box-shadow: 0 3px 14px 0 #6366f149;
+    }
     .footer { font-size: 12px; color: #888; text-align: right; margin-top: 2em; }
     hr { margin: 2em 0; }
     .file-info { font-size: 12px; color: #666; margin-bottom: 0.3em; }
@@ -223,7 +265,7 @@
     // Footer su pagina
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`© Appunti-AI · www.appunti-ai.com · ${new Date().getFullYear()}`, 20, 287);
+    doc.text(`© Appunti-AI · [www.appunti-ai.com](https://www.appunti-ai.com) · ${new Date().getFullYear()}`, 20, 287);
 
     doc.save(`AppuntiAI-${new Date().toISOString().slice(0,10)}.pdf`);
   };
