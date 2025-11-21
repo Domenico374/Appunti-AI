@@ -30,11 +30,11 @@
     multiple
     accept=".txt,.pdf,.doc,.docx,.md,.mp3,.wav,.m4a"
   />
-
   <h2>Appunti</h2>
   <div class="actions">
     <button id="copyBtn">Copia appunti</button>
     <button id="pdfBtn">Esporta PDF</button>
+    <button id="clearBtn">Pulisci</button>
   </div>
   <textarea id="notes" placeholder="Qui appariranno gli appunti estratti o trascritti..."></textarea>
 
@@ -43,6 +43,7 @@
     const notesBox = document.getElementById("notes");
     const copyBtn = document.getElementById("copyBtn");
     const pdfBtn = document.getElementById("pdfBtn");
+    const clearBtn = document.getElementById("clearBtn");
 
     fileInput?.addEventListener("change", (e) => {
       const files = Array.from(e.target.files || []);
@@ -159,6 +160,14 @@
       doc.save(`AppuntiAI-${new Date().toISOString().slice(0,10)}.pdf`);
       pdfBtn.textContent = "✓ Salvato!";
       setTimeout(() => pdfBtn.textContent = "Esporta PDF", 1500);
+    });
+
+    // Pulisci
+    clearBtn.addEventListener("click", () => {
+      notesBox.value = "";
+      localStorage.removeItem("appunti_ai_extractedText");
+      clearBtn.textContent = "✓ Pulito!";
+      setTimeout(() => clearBtn.textContent = "Pulisci", 1200);
     });
 
     // Ripristino automatico
