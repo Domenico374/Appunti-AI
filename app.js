@@ -3,30 +3,51 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[Appunti-AI] Inizializzazione app...");
 
+  // Elementi DOM
+  const dropZone = document.getElementById("dropZone");
   const fileInput = document.getElementById("fileInput");
-  const uploadBtn = document.getElementById("uploadBtn");
   const fileList = document.getElementById("fileList");
-  const noFilesMsg = document.getElementById("noFilesMsg");
   const fileCountBadge = document.getElementById("fileCountBadge");
 
   let uploadedFiles = [];
 
-  // ===== CARICAMENTO E LETTURA FILE =====
+  // ===== GESTIONE CLICK E DRAG-N-DROP SUL BOX =====
 
-  uploadBtn?.addEventListener("click", () => {
+  // Click su dropZone apre file picker
+  dropZone?.addEventListener("click", () => {
     fileInput?.click();
   });
 
+  // Gestione dragover/leave sul box
+  dropZone?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("border-blue-400", "bg-blue-50");
+  });
+  dropZone?.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("border-blue-400", "bg-blue-50");
+  });
+  dropZone?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("border-blue-400", "bg-blue-50");
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length === 0) return;
+    console.log(`[Appunti-AI] Trascinati ${files.length} file`);
+    handleSelectedFiles(files);
+  });
+
+  // Selezione tramite file picker
   fileInput?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) {
       console.log("[Appunti-AI] Nessun file selezionato");
       return;
     }
-
-    console.log(`[Appunti-AI] ${files.length} file selezionati`);
+    console.log(`[Appunti-AI] Selezionati ${files.length} file`);
     handleSelectedFiles(files);
   });
+
+  // ===== CARICAMENTO E LETTURA FILE =====
 
   function handleSelectedFiles(files) {
     uploadedFiles = [];
@@ -43,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
         type: f.type
       };
 
-      // PDF: usa PDF.js
+      // PDF
       if (f.name.endsWith(".pdf") || f.type === "application/pdf") {
         extractTextFromPDF(f, function(text) {
           allTexts[idx] = text;
@@ -52,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (filesProcessed === filesToProcess) afterAllExtracted();
         });
       }
-      // DOCX: usa Mammoth.js
+      // DOCX
       else if (f.name.endsWith(".docx") || f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
         extractTextFromDOCX(f, function(text) {
           allTexts[idx] = text;
@@ -61,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (filesProcessed === filesToProcess) afterAllExtracted();
         });
       }
-      // TXT: lettura diretta
+      // TXT
       else if (f.name.endsWith(".txt") || f.type === "text/plain") {
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -85,21 +106,18 @@ document.addEventListener("DOMContentLoaded", () => {
     function afterAllExtracted() {
       console.log("[Appunti-AI] Tutti i file elaborati");
       const combinedText = allTexts.filter(t => t).join("\n\n---\n\n");
-      
-      // Salva i testi e i file in localStorage
+      // Salva in localStorage
       localStorage.setItem("appunti_ai_extractedText", combinedText);
       localStorage.setItem("appunti_ai_lastFiles", JSON.stringify(uploadedFiles));
-      
       console.log(`[Appunti-AI] Testo salvato (${combinedText.length} caratteri)`);
       console.log("[Appunti-AI] File salvati in localStorage");
 
-      // Reindirizza a workspace
+      // Reindirizza al workspace
       window.location.assign("workspace.html");
     }
   }
 
   // ===== ESTRAZIONE PDF (con PDF.js) =====
-
   function extractTextFromPDF(file, callback) {
     console.log("[Appunti-AI] Inizio estrazione PDF...");
     const reader = new FileReader();
@@ -146,20 +164,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ===== ESTRAZIONE DOCX (con Mammoth.js) =====
-
   function extractTextFromDOCX(file, callback) {
     console.log("[Appunti-AI] Inizio estrazione DOCX...");
     const reader = new FileReader();
 
     reader.onload = function(e) {
       const mammoth = window.mammoth;
-
       if (!mammoth) {
         console.error("[Appunti-AI] Mammoth.js non caricato");
         callback("");
         return;
       }
-
       mammoth.extractRawText({ arrayBuffer: e.target.result })
         .then(function(result) {
           console.log("[Appunti-AI] DOCX estratto correttamente");
@@ -172,28 +187,6 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     reader.readAsArrayBuffer(file);
-  }
-
-  // ===== VISUALIZZAZIONE LISTA FILE =====
-
-  function displayFileList() {
-    if (uploadedFiles.length === 0) {
-      fileCountBadge.textContent = "0 file";
-      return;
-    }
-
-    fileCountBadge.textContent = `${uploadedFiles.length} file`;
-    fileList.innerHTML = "";
-
-    uploadedFiles.forEach((file) => {
-      const li = document.createElement("li");
-      li.className = "flex items-center justify-between p-2 rounded hover:bg-slate-50";
-      li.innerHTML = `
-        <span class="text-slate-700">${file.name}</span>
-        <span class="text-xs text-slate-400">${Math.round(file.sizeKb)} KB</span>
-      `;
-      fileList.appendChild(li);
-    });
   }
 
   console.log("[Appunti-AI] App pronta!");
