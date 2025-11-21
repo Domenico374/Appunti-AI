@@ -4,34 +4,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Elementi DOM
   const elements = {
-    // File
     fileListWorkspace: document.getElementById("fileListWorkspace"),
     fileCountBadge: document.getElementById("fileCountBadge"),
     noFilesMsg: document.getElementById("noFilesMsg"),
-    
-    // Appunti
     notes: document.getElementById("notes"),
     btnClearNotes: document.getElementById("btnClearNotes"),
-    
-    // Analisi AI
     btnSummary: document.getElementById("btnSummary"),
     btnHighlights: document.getElementById("btnHighlights"),
     btnTodo: document.getElementById("btnTodo"),
     summaryBox: document.getElementById("summaryBox"),
     highlightsBox: document.getElementById("highlightsBox"),
     todoBox: document.getElementById("todoBox"),
-    
-    // Verbale
     btnGenerateMinutes: document.getElementById("btnGenerateMinutes"),
     btnCopyMinutes: document.getElementById("btnCopyMinutes"),
     minutesBox: document.getElementById("minutesBox"),
-
-    // Generazione documento tramite API
     documentType: document.getElementById("documentType"),
     generateDocApi: document.getElementById("generateDocApi")
   };
 
-  // Stato dell'applicazione
   let state = {
     files: [],
     currentNotes: ""
@@ -279,10 +269,7 @@ ${oggi.toISOString()}`;
     elements.generateDocApi.disabled = true;
     elements.generateDocApi.textContent = "Attendere...";
     
-    // Modifica con il tuo endpoint Vercel:
-   fetch("https://appunti-ai-three.vercel.app/api/genera", {
-  // ...
-})
+    fetch("https://appunti-ai-three.vercel.app/api/genera", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -293,8 +280,6 @@ ${oggi.toISOString()}`;
     })
     .then(r => r.json())
     .then(data => {
-      // Gestione della risposta: mostra o scarica il file generato
-      // Esempio: visualizza come testo
       if (data && data.contenuto) {
         elements.minutesBox.value = data.contenuto;
       } else {
@@ -311,7 +296,6 @@ ${oggi.toISOString()}`;
     });
   });
 
-  // ===== UTILITY =====
   function clearAllAnalysis() {
     elements.summaryBox.textContent = "—";
     elements.highlightsBox.textContent = "—";
@@ -319,7 +303,6 @@ ${oggi.toISOString()}`;
     elements.minutesBox.value = "";
   }
 
-  // ===== AUTO-SAVE =====
   setInterval(() => {
     if (state.currentNotes) {
       localStorage.setItem("appunti_ai_notes", state.currentNotes);
@@ -327,7 +310,6 @@ ${oggi.toISOString()}`;
     }
   }, 30000);
 
-  // ===== INIT =====
   loadFiles();
   loadNotes();
   const lastMinutes = localStorage.getItem("appunti_ai_lastMinutes");
