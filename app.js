@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   fileInput?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
+      console.log("File caricato:", file.name, file.type);
       if (file.type.startsWith("audio/")) {
         trascriviAudioOpenAI(file);
         return;
@@ -21,10 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function leggiTesto(file) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      // Salva il testo estratto in localStorage + textarea appunti
       const extracted = e.target.result;
       localStorage.setItem("appunti_ai_extractedText", extracted);
       notesBox.value = extracted;
+      console.log("Testo estratto:", extracted?.slice(0, 120));
     };
     reader.readAsText(file, "UTF-8");
   }
@@ -44,6 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then(r => r.json())
       .then(data => {
+        console.log("Risposta API trascrivi:", data);
         if (data.testo) {
           localStorage.setItem("appunti_ai_extractedText", data.testo);
           notesBox.value = data.testo;
@@ -52,7 +54,10 @@ document.addEventListener("DOMContentLoaded", () => {
           alert("Errore trascrizione audio.");
         }
       })
-      .catch(() => alert("Errore nella richiesta di trascrizione audio."));
+      .catch((err) => {
+        console.error("Errore nella richiesta di trascrizione audio:", err);
+        alert("Errore nella richiesta di trascrizione audio.");
+      });
     };
     reader.readAsDataURL(file); // Converte l'audio in base64
   }
@@ -61,5 +66,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const estrattiSalvati = localStorage.getItem("appunti_ai_extractedText");
   if (estrattiSalvati) {
     notesBox.value = estrattiSalvati;
+    console.log("Ripristino appunti da localStorage.");
   }
 });
