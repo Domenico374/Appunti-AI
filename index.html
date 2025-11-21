@@ -13,10 +13,12 @@
   </style>
   <!-- PDF.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Mammoth.js CDN per DOCX -->
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
 </head>
 <body>
   <h1>Appunti-AI</h1>
-  <label for="fileInput">Carica file (testo, PDF, DOCX, audio):</label>
+  <label for="fileInput">Carica file (TXT, PDF, DOCX, audio):</label>
   <input
     id="fileInput"
     type="file"
@@ -42,11 +44,15 @@
           estraiTestoPDF(file);
           return;
         }
+        if (file.name.endsWith(".docx")) {
+          estraiTestoDOCX(file);
+          return;
+        }
         leggiTesto(file); // Solo per TXT/MD
       }
     });
 
-    // TXT/MD
+    // === TXT/MD ===
     function leggiTesto(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -58,7 +64,7 @@
       reader.readAsText(file, "UTF-8");
     }
 
-    // --- PDF.js Integration ---
+    // === PDF.js ===
     function estraiTestoPDF(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -83,7 +89,34 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // AUDIO: funzione placeholder, va integrata come già discusso
+    // === Mammoth.js per DOCX ===
+    function estraiTestoDOCX(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        mammoth.convertToHtml({ arrayBuffer: e.target.result })
+          .then(result => {
+            const html = result.value;
+            // Converti HTML in testo puro (rimuovi tag HTML)
+            const txt = html
+              .replace(/<[^>]+>/g, '') // Rimuovi tag HTML
+              .replace(/&nbsp;/g, ' ')  // Spazi non-breaking
+              .replace(/&amp;/g, '&')   // Ampersand
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .trim();
+            notesBox.value = txt;
+            localStorage.setItem("appunti_ai_extractedText", txt);
+            console.log("Testo DOCX estratto:", txt.slice(0, 120));
+          })
+          .catch(err => {
+            console.error("Errore Mammoth:", err);
+            alert("Errore estrazione DOCX.");
+          });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // === AUDIO (Whisper) ===
     function trascriviAudioOpenAI(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
