@@ -143,6 +143,17 @@
                     class="w-full text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 resize-none"
                     placeholder="Il verbale formattato comparirà qui…"></textarea>
         </div>
+
+        <!-- Generazione documento tramite API -->
+        <div class="bg-white shadow-sm rounded-xl border border-slate-100 p-4 mt-4">
+          <label for="documentType" class="text-xs font-medium text-slate-600 mb-1 block">Tipo documentazione:</label>
+          <select id="documentType" class="w-full rounded border p-2">
+            <option value="verbale">Verbale riunione</option>
+            <option value="relazione">Relazione scritta</option>
+            <option value="pubblicazione">Pubblicazione</option>
+          </select>
+          <button id="generateDocApi" class="mt-2 px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Genera tramite API</button>
+        </div>
       </section>
     </main>
   </div>
@@ -150,3 +161,4 @@
   <script src="workspace.js"></script>
 </body>
 </html>
+
