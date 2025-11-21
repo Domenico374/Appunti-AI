@@ -280,7 +280,9 @@ ${oggi.toISOString()}`;
     elements.generateDocApi.textContent = "Attendere...";
     
     // Modifica con il tuo endpoint Vercel:
-    fetch("https://your-vercel-api-endpoint", {
+   fetch("https://appunti-ai-three.vercel.app/api/genera", {
+  // ...
+})
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
