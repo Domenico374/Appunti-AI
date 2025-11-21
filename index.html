@@ -5,45 +5,121 @@
   <title>Appunti-AI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #fafafa;
-      color: #222;
-      padding: 2rem;
-      max-width: 700px;
-      margin: auto;
-    }
-    h1 {
-      margin-bottom: 0.5rem;
-      color: #444;
-    }
-    label {
-      font-weight: bold;
-      margin-top: 1rem;
-      display: block;
-    }
-    input[type="file"] {
-      margin-bottom: 1rem;
-    }
-    textarea {
-      width: 100%;
-      min-height: 180px;
-      margin-top: 1rem;
-    }
+    body { font-family: Arial, sans-serif; background: #fafafa; color: #222; padding: 2rem; max-width: 700px; margin: auto; }
+    h1 { margin-bottom: 0.5rem; color: #444; }
+    label { font-weight: bold; margin-top: 1rem; display: block; }
+    input[type="file"] { margin-bottom: 1rem; }
+    textarea { width: 100%; min-height: 180px; margin-top: 1rem; }
   </style>
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
   <h1>Appunti-AI</h1>
   <label for="fileInput">Carica file (testo, PDF, DOCX, audio):</label>
-  <input 
-    id="fileInput" 
-    type="file" 
-    multiple 
+  <input
+    id="fileInput"
+    type="file"
+    multiple
     accept=".txt,.pdf,.doc,.docx,.md,.mp3,.wav,.m4a"
   />
   <h2>Appunti</h2>
   <textarea id="notes" placeholder="Qui appariranno gli appunti estratti o trascritti..."></textarea>
-  <script src="app.js"></script>
-  <!-- Usa <script src="index.js"></script> se il tuo file JS si chiama così -->
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const notesBox = document.getElementById("notes");
+
+    fileInput?.addEventListener("change", (e) => {
+      const files = Array.from(e.target.files || []);
+      for (const file of files) {
+        console.log("File caricato:", file.name, file.type);
+        if (file.type.startsWith("audio/")) {
+          trascriviAudioOpenAI(file);
+          return;
+        }
+        if (file.type === "application/pdf") {
+          estraiTestoPDF(file);
+          return;
+        }
+        leggiTesto(file); // Solo per TXT/MD
+      }
+    });
+
+    // TXT/MD
+    function leggiTesto(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const extracted = e.target.result;
+        localStorage.setItem("appunti_ai_extractedText", extracted);
+        notesBox.value = extracted;
+        console.log("Testo estratto:", extracted?.slice(0, 120));
+      };
+      reader.readAsText(file, "UTF-8");
+    }
+
+    // --- PDF.js Integration ---
+    function estraiTestoPDF(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const typedarray = new Uint8Array(e.target.result);
+        pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+          let testoTotale = "";
+          let promesse = [];
+          for (let i = 1; i <= pdf.numPages; i++) {
+            promesse.push(pdf.getPage(i).then(page =>
+              page.getTextContent().then(txt => {
+                testoTotale += txt.items.map(item => item.str).join(" ") + "\n";
+              })
+            ));
+          }
+          Promise.all(promesse).then(() => {
+            notesBox.value = testoTotale;
+            localStorage.setItem("appunti_ai_extractedText", testoTotale);
+            console.log("Testo PDF estratto:", testoTotale.slice(0, 120));
+          });
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // AUDIO: funzione placeholder, va integrata come già discusso
+    function trascriviAudioOpenAI(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const audioBase64 = e.target.result.split(',')[1];
+        fetch("/api/trascrivi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audioBase64,
+            audioMimeType: file.type
+          })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.testo) {
+            localStorage.setItem("appunti_ai_extractedText", data.testo);
+            notesBox.value = data.testo;
+            alert("Trascrizione audio completata!");
+          } else {
+            alert("Errore trascrizione audio.");
+          }
+        })
+        .catch((err) => {
+          console.error("Errore nella richiesta di trascrizione audio:", err);
+          alert("Errore nella richiesta di trascrizione audio.");
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Ripristina appunti già estratti
+    const estrattiSalvati = localStorage.getItem("appunti_ai_extractedText");
+    if (estrattiSalvati) {
+      notesBox.value = estrattiSalvati;
+      console.log("Ripristino appunti da localStorage.");
+    }
+  </script>
 </body>
 </html>
