@@ -8,10 +8,10 @@
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Mammoth.js (lettura DOCX lato browser) -->
+  <!-- Mammoth.js (DOCX browser) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
-  <!-- PDF.js (lettura PDF lato browser) -->
+  <!-- PDF.js (PDF browser) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -24,12 +24,8 @@
 </head>
 
 <body class="min-h-screen bg-slate-50 flex items-center justify-center">
-
-  <!-- Schermata iniziale -->
   <main id="welcomeScreen"
         class="max-w-xl w-full mx-4 bg-white rounded-2xl shadow-lg border border-slate-100 p-8">
-    
-    <!-- Titolo -->
     <header class="mb-6 text-center">
       <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Appunti-AI</h1>
       <p class="mt-2 text-sm text-slate-500">
@@ -37,14 +33,12 @@
       </p>
     </header>
 
-    <!-- Box upload -->
     <section>
       <div id="dropZone"
            class="border-2 border-dashed border-slate-300 rounded-xl bg-slate-50
                   px-6 py-10 flex flex-col items-center justify-center gap-3
                   cursor-pointer transition hover:border-blue-400 hover:bg-blue-50">
-        
-        <!-- Icona -->
+
         <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor"
              stroke-width="1.8" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round"
@@ -52,7 +46,6 @@
           <path stroke-linecap="round" stroke-linejoin="round"
                 d="M4 16a7 7 0 0114 0v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1z" />
         </svg>
-
         <p class="text-sm font-medium text-slate-900">
           Trascina qui i file oppure
           <span class="text-blue-600 underline">clicca per selezionarli</span>
@@ -61,21 +54,17 @@
           Formati supportati: PDF, DOC, DOCX, TXT, JPG, PNG
         </p>
 
-        <!-- Input file nascosto -->
         <input id="fileInput" type="file" multiple
                accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png"
                class="hidden" />
       </div>
 
-      <!-- Elenco file scelti -->
       <div id="fileList" class="mt-4 text-xs text-slate-500 hidden">
         <p class="font-medium text-slate-600 mb-1">File selezionati:</p>
         <ul class="list-disc list-inside space-y-0.5" id="fileNames"></ul>
       </div>
     </section>
   </main>
-
-  <!-- Script principale -->
   <script src="app.js" defer></script>
 </body>
 </html>
