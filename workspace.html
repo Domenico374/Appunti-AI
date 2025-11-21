@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Appunti-AI – Workspace</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- jsPDF per scaricamento PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-900">
-  <!-- Shell generale -->
   <div class="min-h-screen max-w-5xl mx-auto px-4 py-6">
-    <!-- Header -->
     <header class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-semibold tracking-tight">Appunti-AI</h1>
@@ -23,11 +23,8 @@
       </a>
     </header>
 
-    <!-- Contenuto principale -->
     <main class="grid gap-6 lg:grid-cols-2">
-      <!-- Colonna sinistra -->
       <section class="space-y-4">
-        <!-- File caricati -->
         <div class="bg-white shadow-sm rounded-xl border border-slate-100 p-4">
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wide">
@@ -45,7 +42,6 @@
           </ul>
         </div>
 
-        <!-- Appunti -->
         <div class="bg-white shadow-sm rounded-xl border border-slate-100 p-4">
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wide">
@@ -66,9 +62,7 @@
         </div>
       </section>
 
-      <!-- Colonna destra -->
       <section class="space-y-4">
-        <!-- Analisi AI leggera (placeholder) -->
         <div class="bg-white shadow-sm rounded-xl border border-slate-100 p-4">
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wide">
@@ -121,7 +115,6 @@
           </div>
         </div>
 
-        <!-- Verbale -->
         <div class="bg-white shadow-sm rounded-xl border border-slate-100 p-4">
           <div class="flex items-center justify-between mb-3">
             <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wide">
@@ -136,6 +129,10 @@
                       class="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50">
                 Copia
               </button>
+              <button id="btnDownloadPDF"
+                      class="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50">
+                ⬇️ PDF
+              </button>
             </div>
           </div>
           <textarea id="minutesBox"
@@ -144,15 +141,14 @@
                     placeholder="Il verbale formattato comparirà qui…"></textarea>
         </div>
 
-        <!-- Generazione documento tramite API -->
         <div class="bg-white shadow-sm rounded-xl border border-slate-100 p-4 mt-4">
           <label for="documentType" class="text-xs font-medium text-slate-600 mb-1 block">Tipo documentazione:</label>
-          <select id="documentType" class="w-full rounded border p-2">
+          <select id="documentType" class="w-full rounded border p-2 mb-2">
             <option value="verbale">Verbale riunione</option>
             <option value="relazione">Relazione scritta</option>
             <option value="pubblicazione">Pubblicazione</option>
           </select>
-          <button id="generateDocApi" class="mt-2 px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Genera tramite API</button>
+          <button id="generateDocApi" class="w-full px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Genera tramite API</button>
         </div>
       </section>
     </main>
@@ -161,4 +157,3 @@
   <script src="workspace.js"></script>
 </body>
 </html>
-
