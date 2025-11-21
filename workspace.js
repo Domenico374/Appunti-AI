@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
     todoBox: document.getElementById("todoBox"),
     btnGenerateMinutes: document.getElementById("btnGenerateMinutes"),
     btnCopyMinutes: document.getElementById("btnCopyMinutes"),
+    btnDownloadPDF: document.getElementById("btnDownloadPDF"),
     minutesBox: document.getElementById("minutesBox"),
     documentType: document.getElementById("documentType"),
     generateDocApi: document.getElementById("generateDocApi")
@@ -66,14 +67,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function loadNotes() {
-    // Prova prima con gli appunti estratti dagli upload (default pipeline)
     const extracted = localStorage.getItem("appunti_ai_extractedText");
     if (extracted) {
       elements.notes.value = extracted;
       state.currentNotes = extracted;
       return;
     }
-    // Se non ci sono, usa quelli manualmente salvati
     const savedNotes = localStorage.getItem("appunti_ai_notes");
     if (savedNotes) {
       elements.notes.value = savedNotes;
@@ -262,6 +261,63 @@ ${oggi.toISOString()}`;
       elements.minutesBox.select();
       document.execCommand('copy');
     }
+  });
+
+  // ===== SCARICA PDF =====
+  elements.btnDownloadPDF?.addEventListener("click", () => {
+    const text = elements.minutesBox.value;
+    if (!text.trim()) {
+      alert("Nessun documento da scaricare. Genera il verbale prima.");
+      return;
+    }
+    console.log("[Workspace] Scaricamento PDF...");
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    // Titolo
+    doc.setFontSize(16);
+    doc.setTextColor(31, 41, 55);
+    doc.text("Appunti-AI", 10, 15);
+
+    // Data di generazione
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 10, 22);
+
+    // Contenuto
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 10;
+    const maxWidth = pageWidth - 2 * margin;
+
+    const lines = doc.splitTextToSize(text, maxWidth);
+    let yPosition = 30;
+
+    lines.forEach(line => {
+      if (yPosition > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+      }
+      doc.text(line, margin, yPosition);
+      yPosition += 5;
+    });
+
+    // Scarica
+    const fileName = `Appunti-AI-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    
+    elements.btnDownloadPDF.textContent = "✓ Scaricato";
+    setTimeout(() => {
+      elements.btnDownloadPDF.textContent = "⬇️ PDF";
+    }, 2000);
   });
 
   // ===== GENERAZIONE DOCUMENTO TRAMITE API =====
