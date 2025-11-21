@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Appunti-AI Professionale</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; max-width: 720px; margin: 2rem auto; background: #fafafa; color: #2a2a2a; }
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 2rem auto; background: #fafafa; color: #2a2a2a; }
     h1 { font-size: 2.2em; margin-top: 36px; margin-bottom: 36px; }
     .section { margin: 26px 0 20px 0; }
     .label {
@@ -39,6 +40,7 @@
       margin: 32px 0;
       display: flex;
       gap: 1em;
+      flex-wrap: wrap;
     }
     button {
       padding: 10px 22px;
@@ -58,6 +60,42 @@
     .footer { font-size: 12px; color: #888; text-align: right; margin-top: 2em; }
     hr { margin: 2em 0; }
     .file-info { font-size: 12px; color: #666; margin-bottom: 0.3em; }
+    /* Spinner Styles */
+    .spinner-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.7);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lds-dual-ring {
+      display: inline-block;
+      width: 64px; height: 64px;
+    }
+    .lds-dual-ring:after {
+      content: " ";
+      display: block;
+      width: 46px;
+      height: 46px;
+      margin: 8px;
+      border-radius: 50%;
+      border: 6px solid #6366f1;
+      border-color: #6366f1 transparent #6366f1 transparent;
+      animation: lds-dual-ring 1.1s linear infinite;
+    }
+    @keyframes lds-dual-ring {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
+    @media (max-width: 600px) {
+      body { max-width: 100vw; margin: 0.5rem; }
+      h1 { font-size: 1.3em; margin-top: 26px; margin-bottom: 18px; }
+      .section { margin: 16px 0 14px 0; }
+      .actions { flex-direction: column; gap: 0.7em; }
+      button { width: 100%; padding: 11px; }
+    }
   </style>
   <!-- PDF.js per PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -67,40 +105,95 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <h1>Appunti-AI Professionale</h1>
-  <div class="section">
-    <span class="label">Titolo documento</span>
-    <input type="text" id="docTitle" value="Verbale Riunione">
+  <div id="app-main">
+    <h1>Appunti-AI Professionale</h1>
+    <div class="section">
+      <span class="label">Titolo documento</span>
+      <input type="text" id="docTitle" value="">
+    </div>
+    <div class="section">
+      <span class="label">Data</span>
+      <input type="text" id="docDate" value="">
+    </div>
+    <div class="section">
+      <span class="label">File di riferimento</span>
+      <input type="text" id="docRef" value="">
+      <div class="file-info" id="fileInfo"></div>
+    </div>
+    <div class="section">
+      <span class="label">Appunti / Corpo</span>
+      <input id="fileInput" type="file" multiple accept=".txt,.pdf,.doc,.docx,.md,.mp3,.wav,.m4a" />
+      <textarea id="notes" rows="8" placeholder="Qui inserisci o carica gli appunti..."></textarea>
+    </div>
+    <div class="section">
+      <span class="label">Note aggiuntive</span>
+      <textarea id="extra" rows="3" placeholder="Note extra, dettagli, firma..."></textarea>
+    </div>
+    <div class="actions">
+      <button id="pdfBtn">Esporta PDF</button>
+      <button id="copyBtn">Copia testo</button>
+      <button id="clearBtn">Pulisci tutto</button>
+    </div>
+    <hr>
+    <div class="footer">© Appunti-AI · www.appunti-ai.com</div>
   </div>
-  <div class="section">
-    <span class="label">Data</span>
-    <input type="text" id="docDate" value="">
+
+  <!-- Spinner overlay -->
+  <div id="spinner" class="spinner-overlay" style="display:none;">
+    <div class="lds-dual-ring"></div>
   </div>
-  <div class="section">
-    <span class="label">File di riferimento</span>
-    <input type="text" id="docRef" value="">
-    <div class="file-info" id="fileInfo"></div>
-  </div>
-  <div class="section">
-    <span class="label">Appunti / Corpo</span>
-    <input id="fileInput" type="file" multiple accept=".txt,.pdf,.doc,.docx,.md,.mp3,.wav,.m4a" />
-    <textarea id="notes" rows="8" placeholder="Qui inserisci o carica gli appunti..."></textarea>
-  </div>
-  <div class="section">
-    <span class="label">Note aggiuntive</span>
-    <textarea id="extra" rows="3" placeholder="Note extra, dettagli, firma..."></textarea>
-  </div>
-  <div class="actions">
-    <button id="pdfBtn">Esporta PDF</button>
-    <button id="copyBtn">Copia testo</button>
-    <button id="clearBtn">Pulisci tutto</button>
-  </div>
-  <hr>
-  <div class="footer">© Appunti-AI · www.appunti-ai.com</div>
 
 <script>
-  // Imposta data automatica
-  document.getElementById("docDate").value = new Date().toLocaleDateString();
+  // Helpers per localStorage
+  function saveLocal() {
+    localStorage.setItem('appuntiAI', JSON.stringify({
+      docTitle: document.getElementById("docTitle").value,
+      docDate: document.getElementById("docDate").value,
+      docRef: document.getElementById("docRef").value,
+      notes: document.getElementById("notes").value,
+      extra: document.getElementById("extra").value,
+      fileInfo: document.getElementById("fileInfo").textContent,
+    }));
+  }
+
+  function loadLocal() {
+    const data = JSON.parse(localStorage.getItem('appuntiAI') || "{}");
+    if (data.docTitle !== undefined) document.getElementById("docTitle").value = data.docTitle;
+    if (data.docDate !== undefined) document.getElementById("docDate").value = data.docDate;
+    if (data.docRef !== undefined) document.getElementById("docRef").value = data.docRef;
+    if (data.notes !== undefined) document.getElementById("notes").value = data.notes;
+    if (data.extra !== undefined) document.getElementById("extra").value = data.extra;
+    if (data.fileInfo !== undefined) document.getElementById("fileInfo").textContent = data.fileInfo;
+  }
+
+  // Salvataggio ogni modifica
+  ["docTitle","docDate","docRef","notes","extra"].forEach(id => {
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById(id).addEventListener("input", saveLocal);
+    });
+  });
+
+  // Spinner functions
+  function showSpinner() {
+    document.getElementById("spinner").style.display = "flex";
+  }
+  function hideSpinner() {
+    document.getElementById("spinner").style.display = "none";
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Recupera dati localStorage
+    if (!localStorage.getItem("appuntiAI")) {
+      document.getElementById("docDate").value = new Date().toLocaleDateString();
+    }
+    loadLocal();
+
+    // Aggiornamento automatico docDate se vuoto
+    if (!document.getElementById("docDate").value) {
+      document.getElementById("docDate").value = new Date().toLocaleDateString();
+    }
+  });
+
   const fileInput = document.getElementById("fileInput");
   const notesBox = document.getElementById("notes");
   const copyBtn = document.getElementById("copyBtn");
@@ -118,16 +211,20 @@
       fileInfo.textContent = "";
       docRef.value = "";
     }
+    saveLocal();
     for (const file of files) {
       if (file.type.startsWith("audio/")) {
+        showSpinner();
         trascriviAudioOpenAI(file);
         return;
       }
       if (file.type === "application/pdf") {
+        showSpinner();
         estraiTestoPDF(file);
         return;
       }
       if (file.name.endsWith(".docx")) {
+        showSpinner();
         estraiTestoDOCX(file);
         return;
       }
@@ -140,6 +237,7 @@
     reader.onload = function(e) {
       const extracted = e.target.result;
       notesBox.value = extracted;
+      saveLocal();
     };
     reader.readAsText(file, "UTF-8");
   }
@@ -160,7 +258,12 @@
         }
         Promise.all(promesse).then(() => {
           notesBox.value = testoTotale;
+          hideSpinner();
+          saveLocal();
         });
+      }).catch(() => {
+        alert("Errore estrazione PDF.");
+        hideSpinner();
       });
     };
     reader.readAsArrayBuffer(file);
@@ -174,8 +277,13 @@
           const html = result.value;
           const txt = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
           notesBox.value = txt;
+          hideSpinner();
+          saveLocal();
         })
-        .catch(() => alert("Errore estrazione DOCX."));
+        .catch(() => {
+          alert("Errore estrazione DOCX.");
+          hideSpinner();
+        });
     };
     reader.readAsArrayBuffer(file);
   }
@@ -199,8 +307,13 @@
         } else {
           alert("Errore trascrizione audio.");
         }
+        hideSpinner();
+        saveLocal();
       })
-      .catch(() => alert("Errore nella richiesta di trascrizione audio."));
+      .catch(() => {
+        alert("Errore nella richiesta di trascrizione audio.");
+        hideSpinner();
+      });
     };
     reader.readAsDataURL(file);
   }
@@ -223,6 +336,7 @@
     notesBox.value = "";
     document.getElementById("extra").value = "";
     fileInfo.textContent = "";
+    localStorage.removeItem('appuntiAI');
     clearBtn.textContent = "✓ Pulito!";
     setTimeout(() => clearBtn.textContent = "Pulisci tutto", 1200);
   };
@@ -261,12 +375,10 @@
       const extraLines = doc.splitTextToSize(extra, 160);
       extraLines.forEach(line => { doc.text(line, 20, y); y += 7; });
     }
-
     // Footer su pagina
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`© Appunti-AI · [www.appunti-ai.com](https://www.appunti-ai.com) · ${new Date().getFullYear()}`, 20, 287);
-
+    doc.text(`© Appunti-AI · www.appunti-ai.com · ${new Date().getFullYear()}`, 20, 287);
     doc.save(`AppuntiAI-${new Date().toISOString().slice(0,10)}.pdf`);
   };
 </script>
