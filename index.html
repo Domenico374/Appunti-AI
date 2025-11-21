@@ -10,11 +10,16 @@
     label { font-weight: bold; margin-top: 1rem; display: block; }
     input[type="file"] { margin-bottom: 1rem; }
     textarea { width: 100%; min-height: 180px; margin-top: 1rem; }
+    .actions { margin: 1em 0; display: flex; gap: 1em; }
+    button { background: #e8e8e8; border: 1px solid #ccc; padding: 6px 18px; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #e0e7ff; border-color: #555; }
   </style>
   <!-- PDF.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- Mammoth.js CDN per DOCX -->
+  <!-- Mammoth.js per DOCX -->
   <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
+  <!-- jsPDF per esportazione PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <h1>Appunti-AI</h1>
@@ -25,17 +30,23 @@
     multiple
     accept=".txt,.pdf,.doc,.docx,.md,.mp3,.wav,.m4a"
   />
+
   <h2>Appunti</h2>
+  <div class="actions">
+    <button id="copyBtn">Copia appunti</button>
+    <button id="pdfBtn">Esporta PDF</button>
+  </div>
   <textarea id="notes" placeholder="Qui appariranno gli appunti estratti o trascritti..."></textarea>
 
   <script>
     const fileInput = document.getElementById("fileInput");
     const notesBox = document.getElementById("notes");
+    const copyBtn = document.getElementById("copyBtn");
+    const pdfBtn = document.getElementById("pdfBtn");
 
     fileInput?.addEventListener("change", (e) => {
       const files = Array.from(e.target.files || []);
       for (const file of files) {
-        console.log("File caricato:", file.name, file.type);
         if (file.type.startsWith("audio/")) {
           trascriviAudioOpenAI(file);
           return;
@@ -52,19 +63,16 @@
       }
     });
 
-    // === TXT/MD ===
     function leggiTesto(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
         const extracted = e.target.result;
         localStorage.setItem("appunti_ai_extractedText", extracted);
         notesBox.value = extracted;
-        console.log("Testo estratto:", extracted?.slice(0, 120));
       };
       reader.readAsText(file, "UTF-8");
     }
 
-    // === PDF.js ===
     function estraiTestoPDF(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -82,41 +90,27 @@
           Promise.all(promesse).then(() => {
             notesBox.value = testoTotale;
             localStorage.setItem("appunti_ai_extractedText", testoTotale);
-            console.log("Testo PDF estratto:", testoTotale.slice(0, 120));
           });
         });
       };
       reader.readAsArrayBuffer(file);
     }
 
-    // === Mammoth.js per DOCX ===
     function estraiTestoDOCX(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
         mammoth.convertToHtml({ arrayBuffer: e.target.result })
           .then(result => {
             const html = result.value;
-            // Converti HTML in testo puro (rimuovi tag HTML)
-            const txt = html
-              .replace(/<[^>]+>/g, '') // Rimuovi tag HTML
-              .replace(/&nbsp;/g, ' ')  // Spazi non-breaking
-              .replace(/&amp;/g, '&')   // Ampersand
-              .replace(/&lt;/g, '<')
-              .replace(/&gt;/g, '>')
-              .trim();
+            const txt = html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
             notesBox.value = txt;
             localStorage.setItem("appunti_ai_extractedText", txt);
-            console.log("Testo DOCX estratto:", txt.slice(0, 120));
           })
-          .catch(err => {
-            console.error("Errore Mammoth:", err);
-            alert("Errore estrazione DOCX.");
-          });
+          .catch(() => alert("Errore estrazione DOCX."));
       };
       reader.readAsArrayBuffer(file);
     }
 
-    // === AUDIO (Whisper) ===
     function trascriviAudioOpenAI(file) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -139,20 +133,37 @@
             alert("Errore trascrizione audio.");
           }
         })
-        .catch((err) => {
-          console.error("Errore nella richiesta di trascrizione audio:", err);
-          alert("Errore nella richiesta di trascrizione audio.");
-        });
+        .catch(() => alert("Errore nella richiesta di trascrizione audio."));
       };
       reader.readAsDataURL(file);
     }
 
-    // Ripristina appunti già estratti
+    // Copia appunti
+    copyBtn.addEventListener("click", () => {
+      if (!notesBox.value.trim()) return;
+      navigator.clipboard.writeText(notesBox.value)
+        .then(() => {
+          copyBtn.textContent = "✓ Copiato!";
+          setTimeout(() => copyBtn.textContent = "Copia appunti", 1500);
+        });
+    });
+
+    // Esporta PDF
+    pdfBtn.addEventListener("click", () => {
+      if (!notesBox.value.trim()) return;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const margin = 15, width = 180;
+      const lines = doc.splitTextToSize(notesBox.value, width);
+      doc.text(lines, margin, 30);
+      doc.save(`AppuntiAI-${new Date().toISOString().slice(0,10)}.pdf`);
+      pdfBtn.textContent = "✓ Salvato!";
+      setTimeout(() => pdfBtn.textContent = "Esporta PDF", 1500);
+    });
+
+    // Ripristino automatico
     const estrattiSalvati = localStorage.getItem("appunti_ai_extractedText");
-    if (estrattiSalvati) {
-      notesBox.value = estrattiSalvati;
-      console.log("Ripristino appunti da localStorage.");
-    }
+    if (estrattiSalvati) notesBox.value = estrattiSalvati;
   </script>
 </body>
 </html>
